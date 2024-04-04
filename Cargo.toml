@@ -1,7 +1,7 @@
 [package]
-name = "eframe_template"
+name = "ps"
 version = "0.1.0"
-authors = ["Emil Ernerfeldt <emil.ernerfeldt@gmail.com>"]
+authors = ["Austin Liu <2ea64fad26@gmail.com>"]
 edition = "2021"
 rust-version = "1.72"
 
