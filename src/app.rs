@@ -2,37 +2,6 @@
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 
-// fn setup_custom_fonts(ctx: &egui::Context) {
-//     // Start with the default fonts (we will be adding to them rather than replacing them).
-//     // let mut fonts = egui::FontDefinitions::default();
-
-//     // Install my own font (maybe supporting non-latin characters).
-//     // .ttf and .otf files supported.
-//     // fonts.font_data.insert(
-//     //     "my_font".to_owned(),
-//     //     egui::FontData::from_static(include_bytes!(
-//     //         "../../../crates/epaint/fonts/Hack-Regular.ttf"
-//     //     )),
-//     // );
-
-//     // // Put my font first (highest priority) for proportional text:
-//     // fonts
-//     //     .families
-//     //     .entry(egui::FontFamily::Proportional)
-//     //     .or_default()
-//     //     .insert(0, "my_font".to_owned());
-
-//     // // Put my font as last fallback for monospace:
-//     // fonts
-//     //     .families
-//     //     .entry(egui::FontFamily::Monospace)
-//     //     .or_default()
-//     //     .push("my_font".to_owned());
-
-//     // // Tell egui to use these fonts:
-//     // ctx.set_fonts(fonts);
-// }
-
 pub struct MyApp {
     // Example stuff:
     label: String,
@@ -122,19 +91,10 @@ impl eframe::App for MyApp {
              });
             ui.vertical_centered(|ui| {
                 ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
-                ui.hyperlink_to("Github", "https://www.youtube.com/watch?v=dQw4w9WgXcQ");
-                ui.hyperlink_to("Linkedin", "https://www.youtube.com/watch?v=dQw4w9WgXcQ");
-                ui.hyperlink_to("Resume", "https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+                ui.hyperlink_to("Github", "https://github.com/ostenloo");
+                ui.hyperlink_to("Linkedin", "https://www.linkedin.com/in/austindasunliu/");
+                ui.hyperlink_to("Resume", "https://drive.google.com/file/d/18TzUzxpuevB1W5LIDFtFhrw2rXruR1Hd/view?usp=sharing");
              });
-            // ui.horizontal(|ui| {
-            //     ui.label("Write something: ");
-            //     ui.text_edit_singleline(&mut self.label);
-            // });
-
-            // ui.add(egui::Slider::new(&mut self.value, 0.0..=10.0).text("value"));
-            // if ui.button("Increment").clicked() {
-            //     self.value += 1.0;
-            // }
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
                 powered_by_egui_and_eframe(ui);
