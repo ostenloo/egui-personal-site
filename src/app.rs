@@ -94,6 +94,7 @@ impl eframe::App for MyApp {
                 ui.hyperlink_to("Github", "https://github.com/ostenloo");
                 ui.hyperlink_to("Linkedin", "https://www.linkedin.com/in/austindasunliu/");
                 ui.hyperlink_to("Resume", "https://drive.google.com/file/d/18TzUzxpuevB1W5LIDFtFhrw2rXruR1Hd/view?usp=sharing");
+                ui.hyperlink_to("Zeitgus", "https://www.zeitgus.com");
              });
 
             ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
