@@ -29,7 +29,6 @@ impl Page {
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
-
 pub struct MyApp {
     // Example stuff:
     label: String,
@@ -134,7 +133,8 @@ impl eframe::App for MyApp {
 
                 ui.horizontal(|ui| {
                     let previous = self.current_page;
-                    ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
+                    ui.style_mut().override_text_style =
+                        Some(egui::TextStyle::Name("Heading2".into()));
                     ui.selectable_value(&mut self.current_page, Page::Home, "Home");
                     ui.selectable_value(&mut self.current_page, Page::Projects, "Projects");
                     if previous != self.current_page {
@@ -186,11 +186,11 @@ impl MyApp {
             ui.label("Projects");
         });
         ui.add_space(32.0);
-        
+
         // Project entries with clean formatting, no borders, center-aligned
         ui.vertical_centered(|ui| {
             ui.spacing_mut().item_spacing.y = 24.0; // More space between projects
-            
+
             // Zeitgus
             ui.vertical_centered(|ui| {
                 ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
@@ -199,7 +199,7 @@ impl MyApp {
                 ui.label("I tried to build a startup in college, all I have is a landing page to show for it.");
                 ui.add_space(8.0);
             });
-            
+
             // FIDE ratings database
             ui.vertical_centered(|ui| {
                 ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
@@ -208,7 +208,7 @@ impl MyApp {
                 ui.label("Chess ratings analysis using Python and Google BigQuery");
                 ui.add_space(8.0);
             });
-            
+
             // Rusty graph coloring
             ui.vertical_centered(|ui| {
                 ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
@@ -217,7 +217,7 @@ impl MyApp {
                 ui.label("Graph coloring algorithms implemented in Rust");
                 ui.add_space(8.0);
             });
-            
+
             // Personal Site
             ui.vertical_centered(|ui| {
                 ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
