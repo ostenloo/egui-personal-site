@@ -1,3 +1,4 @@
+use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use egui_commonmark::{CommonMarkCache, CommonMarkViewer};
 use include_dir::{include_dir, Dir};
 
@@ -6,38 +7,50 @@ static BLOG_POSTS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/blog_posts");
 #[derive(Clone)]
 pub struct BlogPost {
     pub title: String,
-    pub date: String,
+    pub date_display: String,
     pub content: String,
+    pub slug: String,
+    pub published_at: DateTime<Utc>,
 }
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
-#[derive(serde::Deserialize, serde::Serialize, Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, Debug)]
 enum Page {
     Home,
     Projects,
     Blog,
+    BlogPost(String),
 }
 
 impl Page {
     #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
     fn from_path(path: &str) -> Self {
-        let normalized = path.trim();
-        let normalized = normalized.trim_start_matches('/');
-        let normalized = normalized.split('/').next().unwrap_or("");
-        match normalized {
-            "" => Page::Home,
-            "projects" => Page::Projects,
-            "blog" => Page::Blog,
+        let trimmed = path.trim();
+        let trimmed = trimmed.trim_start_matches('/');
+
+        if trimmed.is_empty() {
+            return Page::Home;
+        }
+
+        let mut segments = trimmed.split('/');
+        let first = segments.next();
+        let second = segments.next();
+
+        match (first, second) {
+            (Some("projects"), _) => Page::Projects,
+            (Some("blog"), None | Some("")) => Page::Blog,
+            (Some("blog"), Some(slug)) => Page::BlogPost(slug.to_string()),
             _ => Page::Home,
         }
     }
 
     #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
-    fn path(&self) -> &'static str {
+    fn to_url(&self) -> String {
         match self {
-            Page::Home => "/",
-            Page::Projects => "/projects",
-            Page::Blog => "/blog",
+            Page::Home => "/".to_string(),
+            Page::Projects => "/projects".to_string(),
+            Page::Blog => "/blog".to_string(),
+            Page::BlogPost(slug) => format!("/blog/{}", slug),
         }
     }
 }
@@ -167,6 +180,7 @@ impl MyApp {
         app.markdown_cache = CommonMarkCache::default();
 
         app.pull_route_from_browser();
+        app.sync_blog_selection_from_route();
         app
     }
 }
@@ -190,6 +204,7 @@ impl eframe::App for MyApp {
         }
 
         self.pull_route_from_browser();
+        self.sync_blog_selection_from_route();
 
         // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
         // For inspiration and more examples, go to https://emilk.github.io/egui
@@ -210,13 +225,44 @@ impl eframe::App for MyApp {
                 }
 
                 ui.horizontal(|ui| {
-                    let previous = self.current_page;
                     ui.style_mut().override_text_style =
                         Some(egui::TextStyle::Name("Heading2".into()));
-                    ui.selectable_value(&mut self.current_page, Page::Home, "Home");
-                    ui.selectable_value(&mut self.current_page, Page::Projects, "Projects");
-                    ui.selectable_value(&mut self.current_page, Page::Blog, "Blog");
-                    if previous != self.current_page {
+
+                    let previous = self.current_page.clone();
+                    let mut changed = false;
+
+                    let select_nav = |ui: &mut egui::Ui, is_selected: bool, label: &str| -> bool {
+                        ui.selectable_label(is_selected, label).clicked()
+                    };
+
+                    if select_nav(ui, matches!(self.current_page, Page::Home), "Home")
+                        && !matches!(self.current_page, Page::Home)
+                    {
+                        self.current_page = Page::Home;
+                        self.selected_blog = None;
+                        changed = true;
+                    }
+
+                    if select_nav(ui, matches!(self.current_page, Page::Projects), "Projects")
+                        && !matches!(self.current_page, Page::Projects)
+                    {
+                        self.current_page = Page::Projects;
+                        self.selected_blog = None;
+                        changed = true;
+                    }
+
+                    if select_nav(
+                        ui,
+                        matches!(self.current_page, Page::Blog | Page::BlogPost(_)),
+                        "Blog",
+                    ) && !matches!(self.current_page, Page::Blog)
+                    {
+                        self.current_page = Page::Blog;
+                        self.selected_blog = None;
+                        changed = true;
+                    }
+
+                    if changed && previous != self.current_page {
                         self.push_route_to_browser();
                     }
                 });
@@ -232,10 +278,10 @@ impl eframe::App for MyApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
-            match self.current_page {
+            match self.current_page.clone() {
                 Page::Home => self.show_home(ui),
                 Page::Projects => self.show_projects(ui),
-                Page::Blog => self.show_blog(ui),
+                Page::Blog | Page::BlogPost(_) => self.show_blog(ui),
             }
         });
     }
@@ -334,12 +380,11 @@ impl MyApp {
 
     fn show_blog(&mut self, ui: &mut egui::Ui) {
         if let Some(blog_index) = self.selected_blog {
-            // Show individual blog post with design system styling
             if let Some(blog_post) = self.blog_posts.get(blog_index) {
-                // Add top margin for better spacing
-                ui.add_space(16.0);
+                let mut back_to_list = false;
 
-                // Calculate responsive margins based on screen width
+                ui.add_space(16.0); // Top margin
+
                 let screen_width = ui.available_width();
                 let (left_margin, right_margin) = Self::calculate_responsive_margins(screen_width);
 
@@ -347,54 +392,54 @@ impl MyApp {
                     ui.add_space(left_margin); // Responsive left margin
 
                     ui.vertical(|ui| {
-                        // Calculate the content width by subtracting both margins
                         let content_width = ui.available_width() - right_margin;
                         ui.set_max_width(content_width);
 
-                        // Back button with proper styling - left aligned
                         if ui.button("< Back to Blog List").clicked() {
-                            self.selected_blog = None;
+                            back_to_list = true;
                         }
 
-                        ui.add_space(32.0); // Larger space after back button
+                        ui.add_space(32.0);
 
-                        // Blog post title with H1 styling - left aligned
                         ui.style_mut().override_text_style =
                             Some(egui::TextStyle::Name("Heading1".into()));
                         ui.label(&blog_post.title);
 
-                        ui.add_space(12.0); // Space between title and date
+                        ui.add_space(12.0);
 
-                        // Date with metadata styling - left aligned
                         ui.style_mut().override_text_style = Some(egui::TextStyle::Small);
-                        ui.colored_label(egui::Color32::from_rgb(120, 120, 120), &blog_post.date);
+                        ui.colored_label(
+                            egui::Color32::from_rgb(120, 120, 120),
+                            &blog_post.date_display,
+                        );
 
-                        ui.add_space(40.0); // Design system margin before content
+                        ui.add_space(40.0);
 
-                        // Markdown content with proper spacing - left aligned
-                        // Set proper line height and spacing for markdown content
-                        ui.spacing_mut().item_spacing.y = 20.0; // More generous paragraph spacing
-                        ui.spacing_mut().indent = 24.0; // Better indentation for lists/quotes
+                        ui.spacing_mut().item_spacing.y = 20.0;
+                        ui.spacing_mut().indent = 24.0;
 
-                        CommonMarkViewer::new(format!("blog_{}", blog_index)).show(
+                        let viewer_id = format!("blog_{}", blog_post.slug.as_str());
+                        CommonMarkViewer::new(viewer_id).show(
                             ui,
                             &mut self.markdown_cache,
                             &blog_post.content,
                         );
 
-                        ui.add_space(60.0); // Bottom margin for the post
+                        ui.add_space(60.0);
                     });
                 });
-            }
-            // If we can't find the post anymore (e.g., storage pointed to an old index), fall back to list view.
-            else {
+
+                if back_to_list {
+                    self.selected_blog = None;
+                    self.current_page = Page::Blog;
+                    self.push_route_to_browser();
+                }
+            } else {
                 self.selected_blog = None;
             }
         } else {
-            // Show blog list with design system styling
             ui.add_space(24.0); // Top margin for blog list
 
-            // Calculate responsive margins
             let screen_width = ui.available_width();
             let (left_margin, right_margin) = Self::calculate_responsive_margins(screen_width);
 
@@ -402,7 +447,6 @@ impl MyApp {
                 ui.add_space(left_margin); // Responsive left margin
 
                 ui.vertical(|ui| {
-                    // Calculate the content width by subtracting both margins
                     let content_width = ui.available_width() - right_margin;
                     ui.set_max_width(content_width);
 
@@ -410,50 +454,59 @@ impl MyApp {
                         Some(egui::TextStyle::Name("Heading1".into()));
                     ui.label("Blog");
 
-                    ui.add_space(40.0); // More generous spacing after title
+                    ui.add_space(40.0);
 
-                    for (index, blog_post) in self.blog_posts.iter().enumerate() {
-                        // Blog post card with design system styling and better margins
+                    for index in 0..self.blog_posts.len() {
+                        let blog_post = &self.blog_posts[index];
+                        let title = blog_post.title.clone();
+                        let slug = blog_post.slug.clone();
+                        let date_display = blog_post.date_display.clone();
+                        let mut open_post = false;
+
                         ui.group(|ui| {
                             ui.set_width(ui.available_width());
                             ui.vertical(|ui| {
-                                ui.add_space(16.0); // Top padding inside card
+                                ui.add_space(16.0);
 
                                 ui.horizontal(|ui| {
-                                    ui.add_space(20.0); // Left padding inside card
+                                    ui.add_space(20.0);
 
                                     ui.vertical(|ui| {
-                                        // Post title with H2 styling
                                         ui.style_mut().override_text_style =
                                             Some(egui::TextStyle::Name("Heading2".into()));
-                                        if ui.link(&blog_post.title).clicked() {
-                                            self.selected_blog = Some(index);
+                                        if ui.link(&title).clicked() {
+                                            open_post = true;
                                         }
                                     });
 
                                     ui.with_layout(
                                         egui::Layout::right_to_left(egui::Align::TOP),
                                         |ui| {
-                                            ui.add_space(20.0); // Right padding inside card
-
-                                            // Date with metadata styling
+                                            ui.add_space(20.0);
                                             ui.style_mut().override_text_style =
                                                 Some(egui::TextStyle::Small);
                                             ui.colored_label(
                                                 egui::Color32::from_rgb(120, 120, 120),
-                                                &blog_post.date,
-                                            ); // Consistent gray color
+                                                &date_display,
+                                            );
                                         },
                                     );
                                 });
 
-                                ui.add_space(16.0); // Bottom padding inside card
+                                ui.add_space(16.0);
                             });
                         });
-                        ui.add_space(32.0); // More generous spacing between posts
+
+                        ui.add_space(32.0);
+
+                        if open_post {
+                            self.selected_blog = Some(index);
+                            self.current_page = Page::BlogPost(slug);
+                            self.push_route_to_browser();
+                        }
                     }
 
-                    ui.add_space(40.0); // Bottom margin for the entire blog list
+                    ui.add_space(40.0);
                 });
             });
         }
@@ -467,19 +520,24 @@ impl MyApp {
             if let Some(extension) = file.path().extension() {
                 if extension == "md" {
                     if let Ok(content) = std::str::from_utf8(file.contents()) {
-                        posts.push(Self::parse_blog_post(content));
+                        let slug = file
+                            .path()
+                            .file_stem()
+                            .map(|stem| stem.to_string_lossy().to_string())
+                            .unwrap_or_default();
+                        posts.push(Self::parse_blog_post(content, slug));
                     }
                 }
             }
         }
 
-        // Sort posts by date (newest first)
-        posts.sort_by(|a, b| b.date.cmp(&a.date));
+        // Sort posts by published timestamp (newest first)
+        posts.sort_by(|a, b| b.published_at.cmp(&a.published_at));
 
         posts
     }
 
-    fn parse_blog_post(content: &str) -> BlogPost {
+    fn parse_blog_post(content: &str, mut slug: String) -> BlogPost {
         let (frontmatter, body) = if let Some(stripped) = content.strip_prefix("---\n") {
             // Find the end of frontmatter
             if let Some(end_pos) = stripped.find("\n---\n") {
@@ -494,7 +552,13 @@ impl MyApp {
         };
 
         let mut title = "Untitled".to_string();
-        let mut date = "Unknown".to_string();
+        let mut date_display = "Unknown".to_string();
+        let mut published_at = Utc.from_utc_datetime(
+            &NaiveDate::from_ymd_opt(1970, 1, 1)
+                .unwrap()
+                .and_hms_opt(0, 0, 0)
+                .unwrap(),
+        );
 
         if let Some(fm) = frontmatter {
             for line in fm.lines() {
@@ -502,15 +566,60 @@ impl MyApp {
                 if let Some(rest) = line.strip_prefix("title:") {
                     title = rest.trim().trim_matches('"').to_string();
                 } else if let Some(rest) = line.strip_prefix("date:") {
-                    date = rest.trim().trim_matches('"').to_string();
+                    let value = rest.trim().trim_matches('"');
+                    date_display = value.to_string();
+
+                    if let Ok(dt) = DateTime::parse_from_rfc3339(value) {
+                        date_display = dt.format("%B %-d, %Y").to_string();
+                        published_at = dt.with_timezone(&Utc);
+                    } else if let Ok(dt) = NaiveDateTime::parse_from_str(value, "%Y-%m-%dT%H:%M:%S")
+                    {
+                        date_display = dt.format("%B %-d, %Y").to_string();
+                        published_at = Utc.from_utc_datetime(&dt);
+                    } else if let Ok(dt) = NaiveDateTime::parse_from_str(value, "%Y-%m-%d %H:%M:%S")
+                    {
+                        date_display = dt.format("%B %-d, %Y").to_string();
+                        published_at = Utc.from_utc_datetime(&dt);
+                    } else if let Ok(date) = NaiveDate::parse_from_str(value, "%Y-%m-%d") {
+                        date_display = date.format("%B %-d, %Y").to_string();
+                        published_at = Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0).unwrap());
+                    } else if let Ok(date) = NaiveDate::parse_from_str(value, "%B %d, %Y") {
+                        date_display = date.format("%B %-d, %Y").to_string();
+                        published_at = Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0).unwrap());
+                    }
+                } else if let Some(rest) = line.strip_prefix("slug:") {
+                    let candidate = rest.trim().trim_matches('"').to_string();
+                    if !candidate.is_empty() {
+                        slug = candidate;
+                    }
                 }
             }
         }
 
         BlogPost {
             title,
-            date,
-            content: body.to_string(), // Use only the body content, not the entire file
+            date_display,
+            content: body.to_string(),
+            slug,
+            published_at,
+        }
+    }
+
+    fn sync_blog_selection_from_route(&mut self) {
+        match self.current_page.clone() {
+            Page::BlogPost(slug) => {
+                if let Some(index) = self.blog_posts.iter().position(|post| post.slug == slug) {
+                    self.selected_blog = Some(index);
+                } else {
+                    self.selected_blog = None;
+                    self.current_page = Page::Blog;
+                    self.push_route_to_browser();
+                }
+            }
+            Page::Blog => {
+                self.selected_blog = None;
+            }
+            _ => {}
         }
     }
 
@@ -529,10 +638,10 @@ impl MyApp {
     fn push_route_to_browser(&self) {
         #[cfg(target_arch = "wasm32")]
         {
-            let desired_path = self.current_page.path();
+            let desired_path = self.current_page.to_url();
 
             if let Some(current_path) = current_pathname() {
-                if current_path == desired_path {
+                if current_path.as_str() == desired_path.as_str() {
                     return;
                 }
             }
@@ -542,7 +651,7 @@ impl MyApp {
                     let _ = history.push_state_with_url(
                         &wasm_bindgen::JsValue::NULL,
                         "",
-                        Some(desired_path),
+                        Some(&desired_path),
                     );
                 }
             }

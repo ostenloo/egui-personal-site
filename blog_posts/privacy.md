@@ -1,6 +1,6 @@
 ---
 title: "Privacy"
-date: "October 29, 2025"
+date: "2025-10-29T22:30:00-06:00"
 ---
 
 I've always wanted privacy. 

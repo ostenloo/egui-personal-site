@@ -21,6 +21,7 @@ serde = { version = "1.0", features = ["derive"] }
 
 # Logging utilities
 log = "0.4"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
 
 # ================================
 # Native (desktop) dependencies
