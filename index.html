@@ -69,6 +69,9 @@
             top: 0%;
             left: 50%;
             transform: translate(-50%, 0%);
+            /* Explicit sizing for development - helps with debugging */
+            width: 100vw;
+            height: 100vh;
         }
 
         .centered {
@@ -127,7 +130,8 @@
     <!-- Force refresh (Ctrl + F5) to load the latest files instead of cached files  -->
     <script>
         // We disable caching during development so that we always view the latest version.
-        if ('serviceWorker' in navigator && window.location.hash !== "#dev") {
+        // Temporarily disabled for debugging - uncomment for production
+        if (false && 'serviceWorker' in navigator && window.location.hash !== "#dev") {
             window.addEventListener('load', function () {
                 navigator.serviceWorker.register('sw.js');
             });
