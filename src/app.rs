@@ -8,7 +8,6 @@ pub struct BlogPost {
     pub title: String,
     pub date: String,
     pub content: String,
-    pub summary: String,
 }
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
@@ -76,6 +75,21 @@ impl Default for MyApp {
 }
 
 impl MyApp {
+    /// Calculate responsive margins based on screen width
+    fn calculate_responsive_margins(screen_width: f32) -> (f32, f32) {
+        if screen_width > 800.0 {
+            // Large screen: generous margins for better reading
+            let margin = (screen_width - 700.0) / 2.0;
+            (margin.max(60.0), margin.max(60.0))
+        } else if screen_width > 600.0 {
+            // Medium screen: moderate margins
+            (40.0, 40.0)
+        } else {
+            // Small screen: minimal margins, start from left edge
+            (16.0, 16.0)
+        }
+    }
+
     /// Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
@@ -130,9 +144,6 @@ impl MyApp {
             ),
         ]
         .into();
-
-        // Apply color palette from design system
-        let mut style = (*cc.egui_ctx.style()).clone();
         
         // Apply spacing adjustments for better typography
         style.spacing.item_spacing = egui::vec2(8.0, 12.0);
@@ -222,17 +233,30 @@ impl eframe::App for MyApp {
 
 impl MyApp {
     fn show_home(&mut self, ui: &mut egui::Ui) {
-        ui.vertical_centered(|ui| {
-            ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading1".into()));
-            ui.label("Austin Liu");
-        });
-        ui.add_space(16.0); // Design system spacing
+        ui.add_space(24.0); // Top margin
         
-        ui.vertical_centered(|ui| {
-            ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
-            ui.hyperlink_to("Github", "https://github.com/ostenloo");
-            ui.hyperlink_to("Linkedin", "https://www.linkedin.com/in/austindasunliu/");
-            ui.hyperlink_to("Resume", "https://drive.google.com/file/d/18TzUzxpuevB1W5LIDFtFhrw2rXruR1Hd/view?usp=sharing");
+        // Calculate responsive margins
+        let screen_width = ui.available_width();
+        let (left_margin, right_margin) = Self::calculate_responsive_margins(screen_width);
+        
+        ui.horizontal(|ui| {
+            ui.add_space(left_margin); // Responsive left margin
+            
+            ui.vertical(|ui| {
+                // Calculate the content width by subtracting both margins
+                let content_width = ui.available_width() - right_margin;
+                ui.set_max_width(content_width);
+                
+                ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading1".into()));
+                ui.label("Austin Liu");
+                
+                ui.add_space(16.0); // Design system spacing
+                
+                ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
+                ui.hyperlink_to("Github", "https://github.com/ostenloo");
+                ui.hyperlink_to("Linkedin", "https://www.linkedin.com/in/austindasunliu/");
+                ui.hyperlink_to("Resume", "https://drive.google.com/file/d/18TzUzxpuevB1W5LIDFtFhrw2rXruR1Hd/view?usp=sharing");
+            });
         });
 
         ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
@@ -242,50 +266,63 @@ impl MyApp {
     }
 
     fn show_projects(&mut self, ui: &mut egui::Ui) {
-        ui.vertical_centered(|ui| {
-            ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading1".into()));
-            ui.label("Projects");
-        });
-        ui.add_space(32.0); // Design system H1 bottom margin
+        ui.add_space(24.0); // Top margin
+        
+        // Calculate responsive margins
+        let screen_width = ui.available_width();
+        let (left_margin, right_margin) = Self::calculate_responsive_margins(screen_width);
+        
+        ui.horizontal(|ui| {
+            ui.add_space(left_margin); // Responsive left margin
+            
+            ui.vertical(|ui| {
+                // Calculate the content width by subtracting both margins
+                let content_width = ui.available_width() - right_margin;
+                ui.set_max_width(content_width);
+                
+                ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading1".into()));
+                ui.label("Projects");
+                
+                ui.add_space(32.0); // Design system H1 bottom margin
 
-        // Project entries with design system spacing
-        ui.vertical_centered(|ui| {
-            ui.spacing_mut().item_spacing.y = 32.0; // More space between projects
+                // Project entries with design system spacing
+                ui.spacing_mut().item_spacing.y = 32.0; // More space between projects
 
-            // Zeitgus
-            ui.vertical_centered(|ui| {
-                ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
-                ui.hyperlink_to("Zeitgus", "https://www.zeitgus.com");
-                ui.add_space(8.0);
-                ui.style_mut().override_text_style = Some(egui::TextStyle::Body);
-                ui.label("I tried to build a startup in college, all I have is a landing page to show for it.");
-            });
+                // Zeitgus
+                ui.vertical(|ui| {
+                    ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
+                    ui.hyperlink_to("Zeitgus", "https://www.zeitgus.com");
+                    ui.add_space(8.0);
+                    ui.style_mut().override_text_style = Some(egui::TextStyle::Body);
+                    ui.label("I tried to build a startup in college, all I have is a landing page to show for it.");
+                });
 
-            // FIDE ratings database
-            ui.vertical_centered(|ui| {
-                ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
-                ui.hyperlink_to("FIDE Ratings Database", "https://console.cloud.google.com/bigquery?ws=!1m5!1m4!4m3!1scalm-premise-334401!2sFIDE_ratings!3sFIDE_ratings_2");
-                ui.add_space(8.0);
-                ui.style_mut().override_text_style = Some(egui::TextStyle::Body);
-                ui.label("Chess ratings analysis using Python and Google BigQuery");
-            });
+                // FIDE ratings database
+                ui.vertical(|ui| {
+                    ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
+                    ui.hyperlink_to("FIDE Ratings Database", "https://console.cloud.google.com/bigquery?ws=!1m5!1m4!4m3!1scalm-premise-334401!2sFIDE_ratings!3sFIDE_ratings_2");
+                    ui.add_space(8.0);
+                    ui.style_mut().override_text_style = Some(egui::TextStyle::Body);
+                    ui.label("Chess ratings analysis using Python and Google BigQuery");
+                });
 
-            // Rusty graph coloring
-            ui.vertical_centered(|ui| {
-                ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
-                ui.hyperlink_to("Rusty Graph Coloring", "https://github.com/ostenloo/rusty-graph-coloring");
-                ui.add_space(8.0);
-                ui.style_mut().override_text_style = Some(egui::TextStyle::Body);
-                ui.label("Graph coloring algorithms implemented in Rust");
-            });
+                // Rusty graph coloring
+                ui.vertical(|ui| {
+                    ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
+                    ui.hyperlink_to("Rusty Graph Coloring", "https://github.com/ostenloo/rusty-graph-coloring");
+                    ui.add_space(8.0);
+                    ui.style_mut().override_text_style = Some(egui::TextStyle::Body);
+                    ui.label("Graph coloring algorithms implemented in Rust");
+                });
 
-            // Personal Site
-            ui.vertical_centered(|ui| {
-                ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
-                ui.hyperlink_to("Personal Site", "https://github.com/ostenloo/egui-personal-site");
-                ui.add_space(8.0);
-                ui.style_mut().override_text_style = Some(egui::TextStyle::Body);
-                ui.label("Built with egui and Rust WebAssembly");
+                // Personal Site
+                ui.vertical(|ui| {
+                    ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
+                    ui.hyperlink_to("Personal Site", "https://github.com/ostenloo/egui-personal-site");
+                    ui.add_space(8.0);
+                    ui.style_mut().override_text_style = Some(egui::TextStyle::Body);
+                    ui.label("Built with egui and Rust WebAssembly");
+                });
             });
         });
 
@@ -299,84 +336,109 @@ impl MyApp {
         if let Some(blog_index) = self.selected_blog {
             // Show individual blog post with design system styling
             if let Some(blog_post) = self.blog_posts.get(blog_index) {
-                ui.horizontal(|ui| {
-                    // Back button with proper styling
-                    if ui.button("← Back to Blog List").clicked() {
-                        self.selected_blog = None;
-                    }
-                    ui.add_space(24.0); // Design system spacing
-                });
-                
+                // Add top margin for better spacing
                 ui.add_space(16.0);
                 
-                // Blog post title with H1 styling
-                ui.vertical_centered(|ui| {
-                    ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading1".into()));
-                    ui.label(&blog_post.title);
-                });
+                // Calculate responsive margins based on screen width
+                let screen_width = ui.available_width();
+                let (left_margin, right_margin) = Self::calculate_responsive_margins(screen_width);
                 
-                ui.add_space(8.0);
-                
-                // Date with metadata styling
-                ui.vertical_centered(|ui| {
-                    ui.style_mut().override_text_style = Some(egui::TextStyle::Small);
-                    ui.colored_label(egui::Color32::from_rgb(85, 85, 85), &blog_post.date); // #555555 in RGB
-                });
-                
-                ui.add_space(24.0); // Design system margin before content
+                ui.horizontal(|ui| {
+                    ui.add_space(left_margin); // Responsive left margin
+                    
+                    ui.vertical(|ui| {
+                        // Calculate the content width by subtracting both margins
+                        let content_width = ui.available_width() - right_margin;
+                        ui.set_max_width(content_width);
+                        
+                        // Back button with proper styling - left aligned
+                        if ui.button("< Back to Blog List").clicked() {
+                            self.selected_blog = None;
+                        }
+                        
+                        ui.add_space(32.0); // Larger space after back button
+                        
+                        // Blog post title with H1 styling - left aligned
+                        ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading1".into()));
+                        ui.label(&blog_post.title);
+                        
+                        ui.add_space(12.0); // Space between title and date
+                        
+                        // Date with metadata styling - left aligned
+                        ui.style_mut().override_text_style = Some(egui::TextStyle::Small);
+                        ui.colored_label(egui::Color32::from_rgb(120, 120, 120), &blog_post.date);
+                        
+                        ui.add_space(40.0); // Design system margin before content
 
-                // Markdown content with proper spacing
-                egui::ScrollArea::vertical()
-                    .auto_shrink([false; 2])
-                    .show(ui, |ui| {
+                        // Markdown content with proper spacing - left aligned
                         // Set proper line height and spacing for markdown content
-                        ui.spacing_mut().item_spacing.y = 16.0; // Design system paragraph spacing
+                        ui.spacing_mut().item_spacing.y = 20.0; // More generous paragraph spacing
+                        ui.spacing_mut().indent = 24.0; // Better indentation for lists/quotes
+                        
                         CommonMarkViewer::new(&format!("blog_{}", blog_index))
                             .show(ui, &mut self.markdown_cache, &blog_post.content);
+                        
+                        ui.add_space(60.0); // Bottom margin for the post
                     });
+                });
             }
         } else {
             // Show blog list with design system styling
-            ui.vertical_centered(|ui| {
-                ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading1".into()));
-                ui.label("Blog");
-            });
-            ui.add_space(24.0); // Design system spacing (1.5em equivalent)
+            ui.add_space(24.0); // Top margin for blog list
+            
+            // Calculate responsive margins
+            let screen_width = ui.available_width();
+            let (left_margin, right_margin) = Self::calculate_responsive_margins(screen_width);
+            
+            ui.horizontal(|ui| {
+                ui.add_space(left_margin); // Responsive left margin
+                
+                ui.vertical(|ui| {
+                    // Calculate the content width by subtracting both margins
+                    let content_width = ui.available_width() - right_margin;
+                    ui.set_max_width(content_width);
+                    
+                    ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading1".into()));
+                    ui.label("Blog");
+                    
+                    ui.add_space(40.0); // More generous spacing after title
 
-            egui::ScrollArea::vertical()
-                .auto_shrink([false; 2])
-                .show(ui, |ui| {
                     for (index, blog_post) in self.blog_posts.iter().enumerate() {
-                        // Blog post card with design system styling
+                        // Blog post card with design system styling and better margins
                         ui.group(|ui| {
                             ui.set_width(ui.available_width());
                             ui.vertical(|ui| {
+                                ui.add_space(16.0); // Top padding inside card
+                                
                                 ui.horizontal(|ui| {
+                                    ui.add_space(20.0); // Left padding inside card
+                                    
                                     ui.vertical(|ui| {
                                         // Post title with H2 styling
                                         ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
                                         if ui.link(&blog_post.title).clicked() {
                                             self.selected_blog = Some(index);
                                         }
-                                        
-                                        ui.add_space(8.0);
-                                        
-                                        // Post summary with body text styling
-                                        ui.style_mut().override_text_style = Some(egui::TextStyle::Body);
-                                        ui.label(&blog_post.summary);
                                     });
                                     
                                     ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                                        ui.add_space(20.0); // Right padding inside card
+                                        
                                         // Date with metadata styling
                                         ui.style_mut().override_text_style = Some(egui::TextStyle::Small);
-                                        ui.colored_label(egui::Color32::from_rgb(85, 85, 85), &blog_post.date); // #555555 in RGB
+                                        ui.colored_label(egui::Color32::from_rgb(120, 120, 120), &blog_post.date); // Consistent gray color
                                     });
                                 });
+                                
+                                ui.add_space(16.0); // Bottom padding inside card
                             });
                         });
-                        ui.add_space(24.0); // Design system spacing between posts
+                        ui.add_space(32.0); // More generous spacing between posts
                     }
+                    
+                    ui.add_space(40.0); // Bottom margin for the entire blog list
                 });
+            });
         }
 
         ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
@@ -421,7 +483,6 @@ impl MyApp {
 
         let mut title = "Untitled".to_string();
         let mut date = "Unknown".to_string();
-        let mut summary = "No summary available.".to_string();
 
         if let Some(fm) = frontmatter {
             for line in fm.lines() {
@@ -430,8 +491,6 @@ impl MyApp {
                     title = line[6..].trim().trim_matches('"').to_string();
                 } else if line.starts_with("date:") {
                     date = line[5..].trim().trim_matches('"').to_string();
-                } else if line.starts_with("summary:") {
-                    summary = line[8..].trim().trim_matches('"').to_string();
                 }
             }
         }
@@ -439,8 +498,7 @@ impl MyApp {
         BlogPost {
             title,
             date,
-            summary,
-            content: body.to_string(),
+            content: body.to_string(), // Use only the body content, not the entire file
         }
     }
 
