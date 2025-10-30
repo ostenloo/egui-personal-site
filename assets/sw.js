@@ -1,25 +1,48 @@
-var cacheName = 'egui-template-pwa';
-var filesToCache = [
+const cacheName = 'egui-template-pwa';
+const filesToCache = [
   './',
   './index.html',
   './ps.js',
   './ps_bg.wasm',
 ];
 
-/* Start the service worker and cache all of the app's content */
-self.addEventListener('install', function (e) {
-  e.waitUntil(
-    caches.open(cacheName).then(function (cache) {
-      return cache.addAll(filesToCache);
-    })
+const swUrl = new URL(self.location.href);
+const isLocalDev =
+  swUrl.hostname === '127.0.0.1' ||
+  swUrl.hostname === 'localhost' ||
+  swUrl.hostname.endsWith('.local');
+
+self.addEventListener('install', event => {
+  if (isLocalDev) {
+    self.skipWaiting();
+    return;
+  }
+
+  event.waitUntil(
+    caches.open(cacheName).then(cache => cache.addAll(filesToCache))
   );
 });
 
-/* Serve cached content when offline */
-self.addEventListener('fetch', function (e) {
-  e.respondWith(
-    caches.match(e.request).then(function (response) {
-      return response || fetch(e.request);
-    })
-  );
+self.addEventListener('activate', event => {
+  if (isLocalDev) {
+    event.waitUntil(
+      (async () => {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(key => caches.delete(key)));
+        await self.clients.claim();
+        await self.registration.unregister();
+      })()
+    );
+    return;
+  }
+
+  event.waitUntil(self.clients.claim());
 });
+
+if (!isLocalDev) {
+  self.addEventListener('fetch', event => {
+    event.respondWith(
+      caches.match(event.request).then(response => response || fetch(event.request))
+    );
+  });
+}
