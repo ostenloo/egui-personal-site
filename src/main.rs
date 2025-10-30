@@ -27,8 +27,11 @@ fn main() -> eframe::Result<()> {
 // When compiling to web using trunk:
 #[cfg(target_arch = "wasm32")]
 fn main() {
-    // Redirect `log` message to `console.log` and friends:
-    eframe::WebLogger::init(log::LevelFilter::Debug).ok();
+    // Set up panic hook to see errors in browser console
+    console_error_panic_hook::set_once();
+    
+    // Initialize logging to browser console
+    wasm_logger::init(wasm_logger::Config::default());
 
     let web_options = eframe::WebOptions::default();
 
