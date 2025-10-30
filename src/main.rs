@@ -29,7 +29,7 @@ fn main() -> eframe::Result<()> {
 fn main() {
     // Set up panic hook to see errors in browser console
     console_error_panic_hook::set_once();
-    
+
     // Initialize logging to browser console
     wasm_logger::init(wasm_logger::Config::default());
 
