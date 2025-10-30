@@ -157,6 +157,15 @@ impl MyApp {
             Default::default()
         };
 
+        // Rehydrate transient state that we intentionally skip during serialization.
+        app.blog_posts = Self::create_sample_blog_posts();
+        if let Some(selected) = app.selected_blog {
+            if selected >= app.blog_posts.len() {
+                app.selected_blog = None;
+            }
+        }
+        app.markdown_cache = CommonMarkCache::default();
+
         app.pull_route_from_browser();
         app
     }
@@ -259,10 +268,6 @@ impl MyApp {
             });
         });
 
-        ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-            powered_by_egui_and_eframe(ui);
-            egui::warn_if_debug_build(ui);
-        });
     }
 
     fn show_projects(&mut self, ui: &mut egui::Ui) {
@@ -326,10 +331,6 @@ impl MyApp {
             });
         });
 
-        ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-            powered_by_egui_and_eframe(ui);
-            egui::warn_if_debug_build(ui);
-        });
     }
 
     fn show_blog(&mut self, ui: &mut egui::Ui) {
@@ -381,6 +382,10 @@ impl MyApp {
                         ui.add_space(60.0); // Bottom margin for the post
                     });
                 });
+            }
+            // If we can't find the post anymore (e.g., storage pointed to an old index), fall back to list view.
+            else {
+                self.selected_blog = None;
             }
         } else {
             // Show blog list with design system styling
@@ -441,10 +446,6 @@ impl MyApp {
             });
         }
 
-        ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-            powered_by_egui_and_eframe(ui);
-            egui::warn_if_debug_build(ui);
-        });
     }
 
     fn create_sample_blog_posts() -> Vec<BlogPost> {
@@ -542,22 +543,4 @@ impl MyApp {
 fn current_pathname() -> Option<String> {
     let window = web_sys::window()?;
     window.location().pathname().ok()
-}
-
-fn powered_by_egui_and_eframe(ui: &mut egui::Ui) {
-    ui.horizontal(|ui| {
-        ui.add(egui::github_link_file!(
-            "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-            "Source code."
-        ));
-        ui.spacing_mut().item_spacing.x = 0.0;
-        ui.label("Powered by ");
-        ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-        ui.label(" and ");
-        ui.hyperlink_to(
-            "eframe",
-            "https://github.com/emilk/egui/tree/master/crates/eframe",
-        );
-        ui.label(".");
-    });
 }

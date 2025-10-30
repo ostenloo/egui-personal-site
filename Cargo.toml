@@ -1,58 +1,86 @@
 [package]
 name = "ps"
 version = "0.1.0"
-authors = ["Austin Liu <2ea64fad26@gmail.com>"]
 edition = "2021"
-rust-version = "1.77"
-
+authors = ["Austin Liu <2ea64fad26@gmail.com>"]
+# Trunk and recent crates need Rust 1.81+ for WASM
+rust-version = "1.81"
 
 [dependencies]
+# Core UI framework
 egui = "0.27.0"
+
+# Markdown rendering in egui (CommonMark-compatible)
 egui_commonmark = { version = "0.16", features = ["macros"] }
+
+# Embedding static files (for blog posts)
 include_dir = "0.7"
+
+# Serialization for saving app state
+serde = { version = "1.0", features = ["derive"] }
+
+# Logging utilities
 log = "0.4"
 
-# You only need serde if you want app persistence:
-serde = { version = "1", features = ["derive"] }
-
-# native:
+# ================================
+# Native (desktop) dependencies
+# ================================
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 eframe = { version = "0.27.0", default-features = false, features = [
-    "accesskit",     # Make egui comptaible with screen readers. NOTE: adds a lot of dependencies.
-    "default_fonts", # Embed the default egui fonts.
-    "glow",          # Use the glow rendering backend. Alternative: "wgpu".
-    "persistence",   # Enable restoring app state when restarting the app.
+    "accesskit",     # Accessibility (screen readers)
+    "default_fonts", # Include egui default fonts
+    "glow",          # OpenGL renderer backend
+    "persistence",   # Save app state between runs
 ] }
-env_logger = "0.10"
 
-# web:
+env_logger = "0.10" # Enable log output to console for native builds
+
+# ================================
+# Web (WASM) dependencies
+# ================================
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 eframe = { version = "0.27.0", default-features = false, features = [
-    "glow",          # Use glow rendering backend for web (WebGL)
-    "default_fonts", # Embed the default egui fonts.
-    "persistence",   # Enable restoring app state when restarting the app.
+    "glow",          # Use WebGL
+    "default_fonts", # Include egui fonts
+    "persistence",   # Enable app state saving
 ] }
+
+# WebAssembly bindings
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
+
+# Browser APIs (History, Location, etc.)
 web-sys = { version = "0.3", features = ["History", "Location", "Window"] }
+
+# Enable Rust panics and logs in browser console
 console_error_panic_hook = "0.1"
 wasm-logger = "0.2"
 
+# ================================
+# Build Profiles
+# ================================
 
 [profile.release]
-opt-level = 2 # fast and small wasm
-
-# Optimize all dependencies even in debug builds:
-[profile.dev.package."*"]
+# Optimize for smaller/faster WASM
 opt-level = 2
 
+[profile.dev.package."*"]
+# Optimize dependencies even in dev mode (for faster UI)
+opt-level = 2
 
-[patch.crates-io]
-
-# If you want to use the bleeding edge version of egui and eframe:
-# egui = { git = "https://github.com/emilk/egui", branch = "master" }
-# eframe = { git = "https://github.com/emilk/egui", branch = "master" }
-
-# If you fork https://github.com/emilk/egui you can test with:
-# egui = { path = "../egui/crates/egui" }
-# eframe = { path = "../egui/crates/eframe" }
+# ================================
+# Notes / Hints
+# ================================
+# Folder structure (must exist at build time):
+# ps/
+#   Cargo.toml
+#   src/
+#   blog_posts/
+#     hello.md
+#     another.md
+#
+# Build for web:
+#   trunk serve
+#
+# Build for native:
+#   cargo run
