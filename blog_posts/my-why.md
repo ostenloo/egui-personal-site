@@ -1,6 +1,6 @@
 ---
 title: "My Why"
-date: "2025-10-29T12:00:00-06:00"
+date: 2025-10-29T12:00:00-06:00
 ---
 
 At this moment in time, nobody cares about my why. Because I have accomplished nothing. 

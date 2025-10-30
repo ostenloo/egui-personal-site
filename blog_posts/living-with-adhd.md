@@ -1,6 +1,6 @@
 ---
 title: "Living with ADHD"
-date: "2025-10-29T22:00:00-06:00"
+date: 2025-10-29T22:00:00-06:00
 ---
 
 When I woke up this morning, I thought that I'd spend 2 hours adding a blogging feature to my personal website. 
