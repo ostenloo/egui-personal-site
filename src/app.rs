@@ -55,6 +55,70 @@ impl Page {
     }
 }
 
+struct ThemeToggleButton {
+    is_dark: bool,
+}
+
+impl ThemeToggleButton {
+    fn new(is_dark: bool) -> Self {
+        Self { is_dark }
+    }
+}
+
+impl egui::Widget for ThemeToggleButton {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let side = ui.spacing().interact_size.y.max(32.0);
+        let size = egui::vec2(side, side);
+        let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
+        let hover_text = if self.is_dark {
+            "Switch to light mode"
+        } else {
+            "Switch to dark mode"
+        };
+
+        if ui.is_rect_visible(rect) {
+            let visuals = ui.style().interact(&response);
+            let painter = ui.painter_at(rect);
+            painter.rect(rect, visuals.rounding, visuals.bg_fill, visuals.bg_stroke);
+
+            let icon_padding = rect.height() * 0.25;
+            let icon_rect = rect.shrink(icon_padding);
+            let scale = (icon_rect.width().min(icon_rect.height()) / 24.0).max(0.01);
+            let offset = icon_rect.min;
+            let to_pos = |x: f32, y: f32| egui::pos2(offset.x + x * scale, offset.y + y * scale);
+
+            let icon_color = visuals.fg_stroke.color;
+            let background_color = visuals.bg_fill;
+
+            // Sun core
+            painter.circle_filled(to_pos(12.0, 12.0), 6.0 * scale, icon_color);
+
+            // Crescent mask
+            painter.circle_filled(to_pos(24.0, 10.0), 6.0 * scale, background_color);
+
+            if !self.is_dark {
+                let stroke = egui::Stroke::new(visuals.fg_stroke.width, icon_color);
+                let beams = [
+                    (12.0, 1.0, 12.0, 3.0),
+                    (12.0, 21.0, 12.0, 23.0),
+                    (4.22, 4.22, 5.64, 5.64),
+                    (18.36, 18.36, 19.78, 19.78),
+                    (1.0, 12.0, 3.0, 12.0),
+                    (21.0, 12.0, 23.0, 12.0),
+                    (4.22, 19.78, 5.64, 18.36),
+                    (18.36, 5.64, 19.78, 4.22),
+                ];
+
+                for (x1, y1, x2, y2) in beams {
+                    painter.line_segment([to_pos(x1, y1), to_pos(x2, y2)], stroke);
+                }
+            }
+        }
+
+        response.on_hover_text(hover_text)
+    }
+}
+
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct MyApp {
@@ -64,6 +128,7 @@ pub struct MyApp {
     #[serde(skip)] // This how you opt-out of serialization of a field
     value: f32,
     current_page: Page,
+    prefer_dark: bool,
 
     #[serde(skip)] // Don't serialize blog posts and cache
     blog_posts: Vec<BlogPost>,
@@ -80,6 +145,7 @@ impl Default for MyApp {
             label: "Hello World!".to_owned(),
             value: 2.7,
             current_page: Page::Home,
+            prefer_dark: true,
             blog_posts: Self::create_sample_blog_posts(),
             selected_blog: None,
             markdown_cache: CommonMarkCache::default(),
@@ -100,6 +166,18 @@ impl MyApp {
         } else {
             // Small screen: minimal margins, start from left edge
             (16.0, 16.0)
+        }
+    }
+
+    fn ensure_theme(&self, ctx: &egui::Context) {
+        let desired_dark = self.prefer_dark;
+        if ctx.style().visuals.dark_mode != desired_dark {
+            let visuals = if desired_dark {
+                egui::Visuals::dark()
+            } else {
+                egui::Visuals::light()
+            };
+            ctx.set_visuals(visuals);
         }
     }
 
@@ -164,11 +242,17 @@ impl MyApp {
 
         cc.egui_ctx.set_style(style);
 
+        let mut restored_from_storage = false;
         let mut app: Self = if let Some(storage) = cc.storage {
+            restored_from_storage = true;
             eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default()
         } else {
             Default::default()
         };
+
+        if !restored_from_storage {
+            app.prefer_dark = cc.egui_ctx.style().visuals.dark_mode;
+        }
 
         // Rehydrate transient state that we intentionally skip during serialization.
         app.blog_posts = Self::create_sample_blog_posts();
@@ -193,6 +277,8 @@ impl eframe::App for MyApp {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        self.ensure_theme(ctx);
+
         // Only update style if hyperlink color needs to be green (to avoid constant style updates)
         if ctx.style().visuals.hyperlink_color != egui::Color32::from_rgb(22, 163, 74) {
             let mut style = (*ctx.style()).clone();
@@ -213,7 +299,6 @@ impl eframe::App for MyApp {
             // The top panel is often a good place for a menu bar:
 
             egui::menu::bar(ui, |ui| {
-                // NOTE: no File->Quit on web pages!
                 let is_web = cfg!(target_arch = "wasm32");
                 if !is_web {
                     ui.menu_button("File", |ui| {
@@ -224,55 +309,81 @@ impl eframe::App for MyApp {
                     ui.add_space(16.0);
                 }
 
-                ui.horizontal(|ui| {
-                    ui.style_mut().override_text_style =
-                        Some(egui::TextStyle::Name("Heading2".into()));
+                let screen_width = ctx.input(|input| input.screen_rect.width());
+                let is_compact = screen_width < 520.0;
+                let mut nav_changed = false;
 
-                    let previous = self.current_page.clone();
-                    let mut changed = false;
+                if is_compact {
+                    ui.with_layout(
+                        egui::Layout::left_to_right(egui::Align::Center).with_main_justify(true),
+                        |ui| {
+                            let mut menu_changed = false;
+                            ui.menu_button("Menu", |menu_ui| {
+                                menu_ui.set_min_width(140.0);
+                                menu_ui.vertical(|menu_ui| {
+                                    menu_ui.style_mut().override_text_style =
+                                        Some(egui::TextStyle::Name("Heading2".into()));
 
-                    let select_nav = |ui: &mut egui::Ui, is_selected: bool, label: &str| -> bool {
-                        ui.selectable_label(is_selected, label).clicked()
-                    };
+                                    let home_selected = matches!(self.current_page, Page::Home);
+                                    menu_changed |=
+                                        self.nav_item(menu_ui, "Home", home_selected, Page::Home);
 
-                    if select_nav(ui, matches!(self.current_page, Page::Home), "Home")
-                        && !matches!(self.current_page, Page::Home)
-                    {
-                        self.current_page = Page::Home;
-                        self.selected_blog = None;
-                        changed = true;
-                    }
+                                    let projects_selected =
+                                        matches!(self.current_page, Page::Projects);
+                                    menu_changed |= self.nav_item(
+                                        menu_ui,
+                                        "Projects",
+                                        projects_selected,
+                                        Page::Projects,
+                                    );
 
-                    if select_nav(ui, matches!(self.current_page, Page::Projects), "Projects")
-                        && !matches!(self.current_page, Page::Projects)
-                    {
-                        self.current_page = Page::Projects;
-                        self.selected_blog = None;
-                        changed = true;
-                    }
+                                    let blog_selected =
+                                        matches!(self.current_page, Page::Blog | Page::BlogPost(_));
+                                    menu_changed |=
+                                        self.nav_item(menu_ui, "Blog", blog_selected, Page::Blog);
+                                });
 
-                    if select_nav(
-                        ui,
-                        matches!(self.current_page, Page::Blog | Page::BlogPost(_)),
-                        "Blog",
-                    ) && !matches!(self.current_page, Page::Blog)
-                    {
-                        self.current_page = Page::Blog;
-                        self.selected_blog = None;
-                        changed = true;
-                    }
+                                if menu_changed {
+                                    menu_ui.close_menu();
+                                }
+                            });
+                            nav_changed |= menu_changed;
 
-                    if changed && previous != self.current_page {
-                        self.push_route_to_browser();
-                    }
-                });
-                ui.add_space(16.0);
+                            self.theme_toggle_control(ui, ctx);
+                        },
+                    );
+                } else {
+                    ui.with_layout(
+                        egui::Layout::left_to_right(egui::Align::Center).with_main_justify(true),
+                        |ui| {
+                            ui.horizontal(|ui| {
+                                ui.style_mut().override_text_style =
+                                    Some(egui::TextStyle::Name("Heading2".into()));
 
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                    ui.style_mut().override_text_style =
-                        Some(egui::TextStyle::Name("Heading2".into()));
-                    egui::widgets::global_dark_light_mode_buttons(ui);
-                });
+                                let home_selected = matches!(self.current_page, Page::Home);
+                                nav_changed |= self.nav_item(ui, "Home", home_selected, Page::Home);
+
+                                let projects_selected = matches!(self.current_page, Page::Projects);
+                                nav_changed |= self.nav_item(
+                                    ui,
+                                    "Projects",
+                                    projects_selected,
+                                    Page::Projects,
+                                );
+
+                                let blog_selected =
+                                    matches!(self.current_page, Page::Blog | Page::BlogPost(_));
+                                nav_changed |= self.nav_item(ui, "Blog", blog_selected, Page::Blog);
+                            });
+
+                            self.theme_toggle_control(ui, ctx);
+                        },
+                    );
+                }
+
+                if nav_changed {
+                    self.push_route_to_browser();
+                }
             });
         });
 
@@ -288,6 +399,38 @@ impl eframe::App for MyApp {
 }
 
 impl MyApp {
+    fn navigate_to(&mut self, page: Page) -> bool {
+        if self.current_page != page {
+            self.current_page = page;
+            self.selected_blog = None;
+            true
+        } else {
+            false
+        }
+    }
+
+    fn theme_toggle_control(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
+        let response = ui.add(ThemeToggleButton::new(self.prefer_dark));
+        if response.clicked() {
+            self.prefer_dark = !self.prefer_dark;
+            self.ensure_theme(ctx);
+        }
+    }
+
+    fn nav_item(
+        &mut self,
+        ui: &mut egui::Ui,
+        label: &str,
+        is_selected: bool,
+        target: Page,
+    ) -> bool {
+        if ui.selectable_label(is_selected, label).clicked() {
+            self.navigate_to(target)
+        } else {
+            false
+        }
+    }
+
     fn show_home(&mut self, ui: &mut egui::Ui) {
         ui.add_space(24.0); // Top margin
 
