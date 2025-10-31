@@ -26,4 +26,10 @@ We use [Trunk](https://trunkrs.dev/) to build for web target.
 
 `trunk build --release --public-url . --dist prod/dist`
 
+### Blogs
+
+`chmod +x new_post.sh`
+
+
+
 
