@@ -70,11 +70,6 @@ impl egui::Widget for ThemeToggleButton {
         let side = ui.spacing().interact_size.y.max(32.0);
         let size = egui::vec2(side, side);
         let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
-        let hover_text = if self.is_dark {
-            "Switch to light mode"
-        } else {
-            "Switch to dark mode"
-        };
 
         if ui.is_rect_visible(rect) {
             let visuals = ui.style().interact(&response);
@@ -87,17 +82,13 @@ impl egui::Widget for ThemeToggleButton {
             let offset = icon_rect.min;
             let to_pos = |x: f32, y: f32| egui::pos2(offset.x + x * scale, offset.y + y * scale);
 
-            let icon_color = visuals.fg_stroke.color;
-            let background_color = visuals.bg_fill;
+            let fg = visuals.fg_stroke.color;
+            let bg = visuals.bg_fill;
 
-            // Sun core
-            painter.circle_filled(to_pos(12.0, 12.0), 6.0 * scale, icon_color);
-
-            // Crescent mask
-            painter.circle_filled(to_pos(24.0, 10.0), 6.0 * scale, background_color);
-
-            if !self.is_dark {
-                let stroke = egui::Stroke::new(visuals.fg_stroke.width, icon_color);
+            if self.is_dark {
+                // Show a sun when currently dark (suggesting a click switches to light)
+                painter.circle_filled(to_pos(12.0, 12.0), 6.0 * scale, fg);
+                let stroke = egui::Stroke::new(visuals.fg_stroke.width, fg);
                 let beams = [
                     (12.0, 1.0, 12.0, 3.0),
                     (12.0, 21.0, 12.0, 23.0),
@@ -108,14 +99,171 @@ impl egui::Widget for ThemeToggleButton {
                     (4.22, 19.78, 5.64, 18.36),
                     (18.36, 5.64, 19.78, 4.22),
                 ];
-
                 for (x1, y1, x2, y2) in beams {
                     painter.line_segment([to_pos(x1, y1), to_pos(x2, y2)], stroke);
+                }
+            } else {
+                // Show a crescent moon when currently light (suggesting a click switches to dark)
+                painter.circle_filled(to_pos(12.0, 12.0), 6.0 * scale, fg);
+                painter.circle_filled(to_pos(16.0, 10.0), 6.0 * scale, bg);
+                let glow = egui::Stroke::new(visuals.fg_stroke.width, fg.gamma_multiply(0.8));
+                painter.circle_stroke(to_pos(12.0, 12.0), 6.0 * scale, glow);
+            }
+        }
+
+        response
+    }
+}
+
+struct MenuToggleButton {
+    is_open: bool,
+}
+
+impl MenuToggleButton {
+    fn new(is_open: bool) -> Self {
+        Self { is_open }
+    }
+}
+
+impl egui::Widget for MenuToggleButton {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let side = ui.spacing().interact_size.y.max(32.0);
+        let size = egui::vec2(side, side);
+        let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
+
+        if ui.is_rect_visible(rect) {
+            let visuals = ui.style().interact(&response);
+            let painter = ui.painter_at(rect);
+            painter.rect(rect, visuals.rounding, visuals.bg_fill, visuals.bg_stroke);
+
+            let icon_padding = rect.height() * 0.25;
+            let icon_rect = rect.shrink(icon_padding);
+            let scale = (icon_rect.width().min(icon_rect.height()) / 24.0).max(0.01);
+            let offset = icon_rect.min;
+            let to_pos = |x: f32, y: f32| egui::pos2(offset.x + x * scale, offset.y + y * scale);
+
+            let stroke = egui::Stroke::new(visuals.fg_stroke.width, visuals.fg_stroke.color);
+
+            if self.is_open {
+                painter.line_segment([to_pos(6.0, 6.0), to_pos(18.0, 18.0)], stroke);
+                painter.line_segment([to_pos(18.0, 6.0), to_pos(6.0, 18.0)], stroke);
+            } else {
+                let lines = [6.0, 12.0, 18.0];
+                for y in lines {
+                    painter.line_segment([to_pos(6.0, y), to_pos(18.0, y)], stroke);
                 }
             }
         }
 
-        response.on_hover_text(hover_text)
+        response
+    }
+}
+
+struct NavBarButton<'a> {
+    label: &'a str,
+    selected: bool,
+}
+
+impl<'a> NavBarButton<'a> {
+    fn new(label: &'a str, selected: bool) -> Self {
+        Self { label, selected }
+    }
+}
+
+impl egui::Widget for NavBarButton<'_> {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let padding = ui.spacing().button_padding;
+        let text_style = egui::TextStyle::Name("Heading2".into());
+
+        let text = egui::WidgetText::from(
+            egui::RichText::new(self.label)
+                .text_style(text_style.clone())
+                .color(ui.style().visuals.text_color()),
+        );
+        let galley = text.into_galley(ui, Some(false), f32::INFINITY, text_style.clone());
+
+        let height = ui
+            .spacing()
+            .interact_size
+            .y
+            .max(galley.size().y + padding.y * 2.0);
+        let width = galley.size().x + padding.x * 2.0;
+
+        let (rect, response) =
+            ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::click());
+        let visuals = ui.style().interact_selectable(&response, self.selected);
+
+        if ui.is_rect_visible(rect) {
+            let fill = if self.selected || response.hovered() {
+                visuals.bg_fill
+            } else {
+                egui::Color32::TRANSPARENT
+            };
+
+            let painter = ui.painter_at(rect);
+            painter.rect(rect, egui::Rounding::ZERO, fill, egui::Stroke::NONE);
+
+            let text_pos = egui::pos2(
+                rect.left() + padding.x,
+                rect.center().y - galley.size().y * 0.5,
+            );
+            painter.galley(text_pos, galley, visuals.text_color());
+        }
+
+        response
+    }
+}
+
+struct NavMenuButton<'a> {
+    label: &'a str,
+    selected: bool,
+}
+
+impl<'a> NavMenuButton<'a> {
+    fn new(label: &'a str, selected: bool) -> Self {
+        Self { label, selected }
+    }
+}
+
+impl egui::Widget for NavMenuButton<'_> {
+    fn ui(self, ui: &mut egui::Ui) -> egui::Response {
+        let width = ui.available_width();
+        let height = 56.0;
+        let (rect, response) =
+            ui.allocate_exact_size(egui::vec2(width, height), egui::Sense::click());
+        let visuals = ui.style().interact_selectable(&response, self.selected);
+
+        if ui.is_rect_visible(rect) {
+            let painter = ui.painter_at(rect);
+            painter.rect(
+                rect,
+                egui::Rounding::same(0.0),
+                visuals.bg_fill,
+                egui::Stroke::NONE,
+            );
+
+            let padding = ui.spacing().button_padding;
+            let text_color = visuals.text_color();
+            let text = egui::WidgetText::from(
+                egui::RichText::new(self.label)
+                    .text_style(egui::TextStyle::Name("Heading1".into()))
+                    .color(text_color),
+            );
+            let galley = text.into_galley(
+                ui,
+                Some(false),
+                width - padding.x * 2.0,
+                egui::TextStyle::Name("Heading1".into()),
+            );
+
+            let text_pos = egui::pos2(
+                rect.left() + padding.x,
+                rect.center().y - galley.size().y * 0.5,
+            );
+            painter.galley(text_pos, galley, text_color);
+        }
+
+        response
     }
 }
 
@@ -136,6 +284,8 @@ pub struct MyApp {
 
     #[serde(skip)] // Don't serialize the cache
     markdown_cache: CommonMarkCache,
+    #[serde(skip)] // UI-only overlay state
+    show_mobile_menu: bool,
 }
 
 impl Default for MyApp {
@@ -149,6 +299,7 @@ impl Default for MyApp {
             blog_posts: Self::create_sample_blog_posts(),
             selected_blog: None,
             markdown_cache: CommonMarkCache::default(),
+            show_mobile_menu: false,
         }
     }
 }
@@ -172,11 +323,15 @@ impl MyApp {
     fn ensure_theme(&self, ctx: &egui::Context) {
         let desired_dark = self.prefer_dark;
         if ctx.style().visuals.dark_mode != desired_dark {
-            let visuals = if desired_dark {
+            let mut visuals = if desired_dark {
                 egui::Visuals::dark()
             } else {
                 egui::Visuals::light()
             };
+            let accent = egui::Color32::from_rgb(22, 163, 74);
+            visuals.hyperlink_color = accent;
+            visuals.selection.bg_fill = accent.linear_multiply(0.2);
+            visuals.selection.stroke.color = accent;
             ctx.set_visuals(visuals);
         }
     }
@@ -262,6 +417,7 @@ impl MyApp {
             }
         }
         app.markdown_cache = CommonMarkCache::default();
+        app.show_mobile_menu = false;
 
         app.pull_route_from_browser();
         app.sync_blog_selection_from_route();
@@ -292,6 +448,12 @@ impl eframe::App for MyApp {
         self.pull_route_from_browser();
         self.sync_blog_selection_from_route();
 
+        let screen_width = ctx.input(|input| input.screen_rect.width());
+        let is_compact = screen_width < 520.0;
+        if !is_compact {
+            self.show_mobile_menu = false;
+        }
+
         // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
         // For inspiration and more examples, go to https://emilk.github.io/egui
 
@@ -309,81 +471,30 @@ impl eframe::App for MyApp {
                     ui.add_space(16.0);
                 }
 
-                let screen_width = ctx.input(|input| input.screen_rect.width());
-                let is_compact = screen_width < 520.0;
-                let mut nav_changed = false;
-
-                if is_compact {
-                    ui.with_layout(
-                        egui::Layout::left_to_right(egui::Align::Center).with_main_justify(true),
-                        |ui| {
-                            let mut menu_changed = false;
-                            ui.menu_button("Menu", |menu_ui| {
-                                menu_ui.set_min_width(140.0);
-                                menu_ui.vertical(|menu_ui| {
-                                    menu_ui.style_mut().override_text_style =
-                                        Some(egui::TextStyle::Name("Heading2".into()));
-
-                                    let home_selected = matches!(self.current_page, Page::Home);
-                                    menu_changed |=
-                                        self.nav_item(menu_ui, "Home", home_selected, Page::Home);
-
-                                    let projects_selected =
-                                        matches!(self.current_page, Page::Projects);
-                                    menu_changed |= self.nav_item(
-                                        menu_ui,
-                                        "Projects",
-                                        projects_selected,
-                                        Page::Projects,
-                                    );
-
-                                    let blog_selected =
-                                        matches!(self.current_page, Page::Blog | Page::BlogPost(_));
-                                    menu_changed |=
-                                        self.nav_item(menu_ui, "Blog", blog_selected, Page::Blog);
-                                });
-
-                                if menu_changed {
-                                    menu_ui.close_menu();
-                                }
-                            });
-                            nav_changed |= menu_changed;
-
-                            self.theme_toggle_control(ui, ctx);
-                        },
-                    );
-                } else {
-                    ui.with_layout(
-                        egui::Layout::left_to_right(egui::Align::Center).with_main_justify(true),
-                        |ui| {
+                ui.allocate_ui_with_layout(
+                    ui.available_size_before_wrap(),
+                    egui::Layout::left_to_right(egui::Align::Center),
+                    |ui| {
+                        if is_compact {
+                            let response = ui.add(MenuToggleButton::new(self.show_mobile_menu));
+                            if response.clicked() {
+                                self.show_mobile_menu = !self.show_mobile_menu;
+                            }
+                        } else {
                             ui.horizontal(|ui| {
-                                ui.style_mut().override_text_style =
-                                    Some(egui::TextStyle::Name("Heading2".into()));
-
-                                let home_selected = matches!(self.current_page, Page::Home);
-                                nav_changed |= self.nav_item(ui, "Home", home_selected, Page::Home);
-
-                                let projects_selected = matches!(self.current_page, Page::Projects);
-                                nav_changed |= self.nav_item(
-                                    ui,
-                                    "Projects",
-                                    projects_selected,
-                                    Page::Projects,
-                                );
-
-                                let blog_selected =
-                                    matches!(self.current_page, Page::Blog | Page::BlogPost(_));
-                                nav_changed |= self.nav_item(ui, "Blog", blog_selected, Page::Blog);
+                                self.render_nav_links(ui);
                             });
+                        }
 
-                            self.theme_toggle_control(ui, ctx);
-                        },
-                    );
-                }
-
-                if nav_changed {
-                    self.push_route_to_browser();
-                }
+                        ui.allocate_ui_with_layout(
+                            ui.available_size_before_wrap(),
+                            egui::Layout::right_to_left(egui::Align::Center),
+                            |ui| {
+                                self.theme_toggle_control(ui, ctx);
+                            },
+                        );
+                    },
+                );
             });
         });
 
@@ -395,6 +506,10 @@ impl eframe::App for MyApp {
                 Page::Blog | Page::BlogPost(_) => self.show_blog(ui),
             }
         });
+
+        if is_compact && self.show_mobile_menu {
+            self.show_mobile_menu_overlay(ctx);
+        }
     }
 }
 
@@ -417,18 +532,135 @@ impl MyApp {
         }
     }
 
+    fn render_nav_links(&mut self, ui: &mut egui::Ui) {
+        ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
+
+        let _ = self.nav_item(
+            ui,
+            "Home",
+            matches!(self.current_page, Page::Home),
+            Page::Home,
+        );
+        let _ = self.nav_item(
+            ui,
+            "Projects",
+            matches!(self.current_page, Page::Projects),
+            Page::Projects,
+        );
+        let _ = self.nav_item(
+            ui,
+            "Blog",
+            matches!(self.current_page, Page::Blog | Page::BlogPost(_)),
+            Page::Blog,
+        );
+    }
+
+    fn show_mobile_menu_overlay(&mut self, ctx: &egui::Context) {
+        if ctx.input(|input| input.key_pressed(egui::Key::Escape)) {
+            self.show_mobile_menu = false;
+            return;
+        }
+
+        let screen_rect = ctx.screen_rect();
+        let visuals = ctx.style().visuals.clone();
+        let fill = visuals.panel_fill;
+
+        egui::Area::new(egui::Id::new("mobile_menu_overlay"))
+            .order(egui::Order::Foreground)
+            .movable(false)
+            .interactable(true)
+            .fixed_pos(screen_rect.min)
+            .show(ctx, |ui| {
+                ui.set_min_size(screen_rect.size());
+                egui::Frame::none().fill(fill).show(ui, |ui| {
+                    ui.set_min_size(screen_rect.size());
+
+                    ui.allocate_ui_with_layout(
+                        egui::vec2(ui.available_width(), 0.0),
+                        egui::Layout::left_to_right(egui::Align::Center),
+                        |ui| {
+                            let response = ui.add(MenuToggleButton::new(true));
+                            if response.clicked() {
+                                self.show_mobile_menu = false;
+                            }
+                            ui.allocate_ui_with_layout(
+                                ui.available_size_before_wrap(),
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    self.theme_toggle_control(ui, ctx);
+                                },
+                            );
+                        },
+                    );
+
+                    ui.style_mut().override_text_style =
+                        Some(egui::TextStyle::Name("Heading1".into()));
+                    ui.spacing_mut().item_spacing.y = 0.0;
+                    ui.spacing_mut().button_padding = egui::vec2(16.0, 16.0);
+
+                    ui.vertical(|ui| {
+                        ui.set_width(ui.available_width());
+
+                        let home = self.nav_item_full_width(
+                            ui,
+                            "Home",
+                            matches!(self.current_page, Page::Home),
+                            Page::Home,
+                        );
+                        if home.clicked() {
+                            self.show_mobile_menu = false;
+                        }
+
+                        let projects = self.nav_item_full_width(
+                            ui,
+                            "Projects",
+                            matches!(self.current_page, Page::Projects),
+                            Page::Projects,
+                        );
+                        if projects.clicked() {
+                            self.show_mobile_menu = false;
+                        }
+
+                        let blog = self.nav_item_full_width(
+                            ui,
+                            "Blog",
+                            matches!(self.current_page, Page::Blog | Page::BlogPost(_)),
+                            Page::Blog,
+                        );
+                        if blog.clicked() {
+                            self.show_mobile_menu = false;
+                        }
+                    });
+                });
+            });
+    }
+
     fn nav_item(
         &mut self,
         ui: &mut egui::Ui,
         label: &str,
         is_selected: bool,
         target: Page,
-    ) -> bool {
-        if ui.selectable_label(is_selected, label).clicked() {
-            self.navigate_to(target)
-        } else {
-            false
+    ) -> egui::Response {
+        let response = ui.add(NavBarButton::new(label, is_selected));
+        if response.clicked() && self.navigate_to(target) {
+            self.push_route_to_browser();
         }
+        response
+    }
+
+    fn nav_item_full_width(
+        &mut self,
+        ui: &mut egui::Ui,
+        label: &str,
+        is_selected: bool,
+        target: Page,
+    ) -> egui::Response {
+        let response = ui.add(NavMenuButton::new(label, is_selected));
+        if response.clicked() && self.navigate_to(target) {
+            self.push_route_to_browser();
+        }
+        response
     }
 
     fn show_home(&mut self, ui: &mut egui::Ui) {
@@ -606,41 +838,41 @@ impl MyApp {
                         let date_display = blog_post.date_display.clone();
                         let mut open_post = false;
 
-                        ui.group(|ui| {
-                            ui.set_width(ui.available_width());
-                            ui.vertical(|ui| {
-                                ui.add_space(16.0);
+                        egui::Frame::group(&ui.style())
+                            .stroke(egui::Stroke::NONE)
+                            .rounding(egui::Rounding::ZERO)
+                            .show(ui, |ui| {
+                                ui.set_width(ui.available_width());
+                                ui.vertical(|ui| {
 
-                                ui.horizontal(|ui| {
-                                    ui.add_space(20.0);
+                                    ui.horizontal(|ui| {
 
-                                    ui.vertical(|ui| {
-                                        ui.style_mut().override_text_style =
-                                            Some(egui::TextStyle::Name("Heading2".into()));
-                                        if ui.link(&title).clicked() {
-                                            open_post = true;
-                                        }
+                                        ui.vertical(|ui| {
+                                            ui.style_mut().override_text_style =
+                                                Some(egui::TextStyle::Name("Heading2".into()));
+                                            if ui.link(&title).clicked() {
+                                                open_post = true;
+                                            }
+                                        });
+
+                                        ui.with_layout(
+                                            egui::Layout::right_to_left(egui::Align::TOP),
+                                            |ui| {
+                                                ui.add_space(20.0);
+                                                ui.style_mut().override_text_style =
+                                                    Some(egui::TextStyle::Small);
+                                                ui.colored_label(
+                                                    egui::Color32::from_rgb(120, 120, 120),
+                                                    &date_display,
+                                                );
+                                            },
+                                        );
                                     });
 
-                                    ui.with_layout(
-                                        egui::Layout::right_to_left(egui::Align::TOP),
-                                        |ui| {
-                                            ui.add_space(20.0);
-                                            ui.style_mut().override_text_style =
-                                                Some(egui::TextStyle::Small);
-                                            ui.colored_label(
-                                                egui::Color32::from_rgb(120, 120, 120),
-                                                &date_display,
-                                            );
-                                        },
-                                    );
                                 });
-
-                                ui.add_space(16.0);
                             });
-                        });
 
-                        ui.add_space(32.0);
+                        ui.add_space(16.0);
 
                         if open_post {
                             self.selected_blog = Some(index);
