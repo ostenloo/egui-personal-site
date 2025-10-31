@@ -1,5 +1,6 @@
 use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use egui_commonmark::{CommonMarkCache, CommonMarkViewer};
+use egui_extras::{Size, StripBuilder};
 use include_dir::{include_dir, Dir};
 
 static BLOG_POSTS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/blog_posts");
@@ -67,14 +68,13 @@ impl ThemeToggleButton {
 
 impl egui::Widget for ThemeToggleButton {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let side = ui.spacing().interact_size.y.max(32.0);
-        let size = egui::vec2(side, side);
+        let size = egui::vec2(36.0, 36.0);
         let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
 
         if ui.is_rect_visible(rect) {
             let visuals = ui.style().interact(&response);
             let painter = ui.painter_at(rect);
-            painter.rect(rect, visuals.rounding, visuals.bg_fill, visuals.bg_stroke);
+            painter.rect(rect, visuals.rounding, visuals.bg_fill, egui::Stroke::NONE);
 
             let icon_padding = rect.height() * 0.25;
             let icon_rect = rect.shrink(icon_padding);
@@ -127,14 +127,13 @@ impl MenuToggleButton {
 
 impl egui::Widget for MenuToggleButton {
     fn ui(self, ui: &mut egui::Ui) -> egui::Response {
-        let side = ui.spacing().interact_size.y.max(32.0);
-        let size = egui::vec2(side, side);
+        let size = egui::vec2(36.0, 36.0);
         let (rect, response) = ui.allocate_exact_size(size, egui::Sense::click());
 
         if ui.is_rect_visible(rect) {
             let visuals = ui.style().interact(&response);
             let painter = ui.painter_at(rect);
-            painter.rect(rect, visuals.rounding, visuals.bg_fill, visuals.bg_stroke);
+            painter.rect(rect, visuals.rounding, visuals.bg_fill, egui::Stroke::NONE);
 
             let icon_padding = rect.height() * 0.25;
             let icon_rect = rect.shrink(icon_padding);
@@ -458,7 +457,7 @@ impl eframe::App for MyApp {
         // For inspiration and more examples, go to https://emilk.github.io/egui
 
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
+            ui.set_height(40.0);
 
             egui::menu::bar(ui, |ui| {
                 let is_web = cfg!(target_arch = "wasm32");
@@ -468,33 +467,45 @@ impl eframe::App for MyApp {
                             ctx.send_viewport_cmd(egui::ViewportCommand::Close);
                         }
                     });
-                    ui.add_space(16.0);
+                    ui.add_space(12.0);
                 }
 
-                ui.allocate_ui_with_layout(
-                    ui.available_size_before_wrap(),
-                    egui::Layout::left_to_right(egui::Align::Center),
-                    |ui| {
-                        if is_compact {
-                            let response = ui.add(MenuToggleButton::new(self.show_mobile_menu));
-                            if response.clicked() {
-                                self.show_mobile_menu = !self.show_mobile_menu;
-                            }
-                        } else {
-                            ui.horizontal(|ui| {
+                StripBuilder::new(ui)
+                    .sizes(Size::remainder(), 1)
+                    .sizes(Size::exact(44.0), 1)
+                    .horizontal(|mut strip| {
+                        strip.cell(|ui| {
+                            ui.spacing_mut().item_spacing.x = 8.0;
+                            if is_compact {
+                                let response = ui.add_sized(
+                                    [36.0, 36.0],
+                                    MenuToggleButton::new(self.show_mobile_menu),
+                                );
+                                if response.clicked() {
+                                    self.show_mobile_menu = !self.show_mobile_menu;
+                                }
+                            } else {
                                 self.render_nav_links(ui);
-                            });
-                        }
+                            }
+                        });
 
-                        ui.allocate_ui_with_layout(
-                            ui.available_size_before_wrap(),
-                            egui::Layout::right_to_left(egui::Align::Center),
-                            |ui| {
-                                self.theme_toggle_control(ui, ctx);
-                            },
-                        );
-                    },
-                );
+                        strip.cell(|ui| {
+                            ui.with_layout(
+                                egui::Layout::right_to_left(egui::Align::Center),
+                                |ui| {
+                                    let response = ui.add_sized(
+                                        [36.0, 36.0],
+                                        ThemeToggleButton::new(self.prefer_dark),
+                                    );
+                                    if response.clicked() {
+                                        self.prefer_dark = !self.prefer_dark;
+                                        self.ensure_theme(ctx);
+                                    }
+                                    ui.add_space(4.0);
+                                },
+                            );
+                        });
+                    });
             });
         });
 
@@ -525,7 +536,7 @@ impl MyApp {
     }
 
     fn theme_toggle_control(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
-        let response = ui.add(ThemeToggleButton::new(self.prefer_dark));
+        let response = ui.add_sized([36.0, 36.0], ThemeToggleButton::new(self.prefer_dark));
         if response.clicked() {
             self.prefer_dark = !self.prefer_dark;
             self.ensure_theme(ctx);
@@ -575,23 +586,22 @@ impl MyApp {
                 egui::Frame::none().fill(fill).show(ui, |ui| {
                     ui.set_min_size(screen_rect.size());
 
-                    ui.allocate_ui_with_layout(
-                        egui::vec2(ui.available_width(), 0.0),
-                        egui::Layout::left_to_right(egui::Align::Center),
-                        |ui| {
-                            let response = ui.add(MenuToggleButton::new(true));
-                            if response.clicked() {
-                                self.show_mobile_menu = false;
-                            }
-                            ui.allocate_ui_with_layout(
-                                ui.available_size_before_wrap(),
-                                egui::Layout::right_to_left(egui::Align::Center),
-                                |ui| {
-                                    self.theme_toggle_control(ui, ctx);
-                                },
-                            );
-                        },
-                    );
+                    ui.horizontal(|ui| {
+                        ui.set_width(ui.available_width());
+                        ui.spacing_mut().item_spacing.x = 8.0;
+
+                        let response = ui.add_sized([36.0, 36.0], MenuToggleButton::new(true));
+                        if response.clicked() {
+                            self.show_mobile_menu = false;
+                        }
+
+                        ui.allocate_space(egui::vec2(ui.available_width(), 0.0));
+
+                        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                            self.theme_toggle_control(ui, ctx);
+                            ui.add_space(4.0);
+                        });
+                    });
 
                     ui.style_mut().override_text_style =
                         Some(egui::TextStyle::Name("Heading1".into()));
@@ -762,6 +772,7 @@ impl MyApp {
 
                 let screen_width = ui.available_width();
                 let (left_margin, right_margin) = Self::calculate_responsive_margins(screen_width);
+                let show_dates = screen_width >= 520.0;
 
                 ui.horizontal(|ui| {
                     ui.add_space(left_margin); // Responsive left margin
@@ -782,11 +793,13 @@ impl MyApp {
 
                         ui.add_space(12.0);
 
-                        ui.style_mut().override_text_style = Some(egui::TextStyle::Small);
-                        ui.colored_label(
-                            egui::Color32::from_rgb(120, 120, 120),
-                            &blog_post.date_display,
-                        );
+                        if show_dates {
+                            ui.style_mut().override_text_style = Some(egui::TextStyle::Small);
+                            ui.colored_label(
+                                egui::Color32::from_rgb(120, 120, 120),
+                                &blog_post.date_display,
+                            );
+                        }
 
                         ui.add_space(40.0);
 
@@ -817,6 +830,7 @@ impl MyApp {
 
             let screen_width = ui.available_width();
             let (left_margin, right_margin) = Self::calculate_responsive_margins(screen_width);
+            let show_dates = screen_width >= 520.0;
 
             ui.horizontal(|ui| {
                 ui.add_space(left_margin); // Responsive left margin
@@ -844,8 +858,10 @@ impl MyApp {
                             .show(ui, |ui| {
                                 ui.set_width(ui.available_width());
                                 ui.vertical(|ui| {
+                                    ui.add_space(12.0);
 
                                     ui.horizontal(|ui| {
+                                        ui.add_space(20.0);
 
                                         ui.vertical(|ui| {
                                             ui.style_mut().override_text_style =
@@ -855,20 +871,23 @@ impl MyApp {
                                             }
                                         });
 
-                                        ui.with_layout(
-                                            egui::Layout::right_to_left(egui::Align::TOP),
-                                            |ui| {
-                                                ui.add_space(20.0);
-                                                ui.style_mut().override_text_style =
-                                                    Some(egui::TextStyle::Small);
-                                                ui.colored_label(
-                                                    egui::Color32::from_rgb(120, 120, 120),
-                                                    &date_display,
-                                                );
-                                            },
-                                        );
+                                        if show_dates {
+                                            ui.with_layout(
+                                                egui::Layout::right_to_left(egui::Align::TOP),
+                                                |ui| {
+                                                    ui.add_space(20.0);
+                                                    ui.style_mut().override_text_style =
+                                                        Some(egui::TextStyle::Small);
+                                                    ui.colored_label(
+                                                        egui::Color32::from_rgb(120, 120, 120),
+                                                        &date_display,
+                                                    );
+                                                },
+                                            );
+                                        }
                                     });
 
+                                    ui.add_space(16.0);
                                 });
                             });
 
