@@ -285,6 +285,8 @@ pub struct MyApp {
     markdown_cache: CommonMarkCache,
     #[serde(skip)] // UI-only overlay state
     show_mobile_menu: bool,
+    #[serde(skip)]
+    compact_text_styles: bool,
 }
 
 impl Default for MyApp {
@@ -299,6 +301,7 @@ impl Default for MyApp {
             selected_blog: None,
             markdown_cache: CommonMarkCache::default(),
             show_mobile_menu: false,
+            compact_text_styles: false,
         }
     }
 }
@@ -317,6 +320,74 @@ impl MyApp {
             // Small screen: minimal margins, start from left edge
             (16.0, 16.0)
         }
+    }
+
+    fn configure_text_styles(style: &mut egui::Style, compact: bool) {
+        let heading1 = if compact { 26.0 } else { 34.0 };
+        let heading2 = if compact { 21.0 } else { 27.0 };
+        let heading3 = if compact { 18.0 } else { 23.0 };
+        let heading = heading2;
+        let body = if compact { 14.0 } else { 16.0 };
+        let monospace = if compact { 14.0 } else { 15.0 };
+        let small = if compact { 13.0 } else { 14.0 };
+        let button = if compact { 14.0 } else { 16.0 };
+
+        style.text_styles = [
+            (
+                egui::TextStyle::Name("Heading1".into()),
+                egui::FontId::new(heading1, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Name("Heading2".into()),
+                egui::FontId::new(heading2, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Name("Heading3".into()),
+                egui::FontId::new(heading3, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Heading,
+                egui::FontId::new(heading, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Body,
+                egui::FontId::new(body, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Monospace,
+                egui::FontId::new(monospace, egui::FontFamily::Monospace),
+            ),
+            (
+                egui::TextStyle::Small,
+                egui::FontId::new(small, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Button,
+                egui::FontId::new(button, egui::FontFamily::Proportional),
+            ),
+        ]
+        .into();
+
+        style.spacing.item_spacing = if compact {
+            egui::vec2(6.0, 10.0)
+        } else {
+            egui::vec2(8.0, 12.0)
+        };
+        style.spacing.button_padding = if compact {
+            egui::vec2(10.0, 6.0)
+        } else {
+            egui::vec2(12.0, 8.0)
+        };
+    }
+
+    fn update_text_styles_for_screen(&mut self, ctx: &egui::Context, compact: bool) {
+        if self.compact_text_styles == compact {
+            return;
+        }
+        let mut style = (*ctx.style()).clone();
+        Self::configure_text_styles(&mut style, compact);
+        ctx.set_style(style);
+        self.compact_text_styles = compact;
     }
 
     fn ensure_theme(&self, ctx: &egui::Context) {
@@ -345,54 +416,7 @@ impl MyApp {
 
         let mut style = (*cc.egui_ctx.style()).clone();
 
-        // Apply Markdown Design System Typography
-        style.text_styles = [
-            // H1 - Primary document title
-            (
-                egui::TextStyle::Name("Heading1".into()),
-                egui::FontId::new(34.0, egui::FontFamily::Proportional), // 32-36px range
-            ),
-            // H2 - Major section header
-            (
-                egui::TextStyle::Name("Heading2".into()),
-                egui::FontId::new(27.0, egui::FontFamily::Proportional), // 26-28px range
-            ),
-            // H3 - Subsection header
-            (
-                egui::TextStyle::Name("Heading3".into()),
-                egui::FontId::new(23.0, egui::FontFamily::Proportional), // 22-24px range
-            ),
-            // Default heading (fallback)
-            (
-                egui::TextStyle::Heading,
-                egui::FontId::new(27.0, egui::FontFamily::Proportional),
-            ),
-            // Paragraph - Default body text
-            (
-                egui::TextStyle::Body,
-                egui::FontId::new(16.0, egui::FontFamily::Proportional),
-            ),
-            // Code / Preformatted - Monospace
-            (
-                egui::TextStyle::Monospace,
-                egui::FontId::new(15.0, egui::FontFamily::Monospace),
-            ),
-            // Small / Metadata - Captions, notes
-            (
-                egui::TextStyle::Small,
-                egui::FontId::new(14.0, egui::FontFamily::Proportional),
-            ),
-            // Button text
-            (
-                egui::TextStyle::Button,
-                egui::FontId::new(16.0, egui::FontFamily::Proportional),
-            ),
-        ]
-        .into();
-
-        // Apply spacing adjustments for better typography
-        style.spacing.item_spacing = egui::vec2(8.0, 12.0);
-        style.spacing.button_padding = egui::vec2(12.0, 8.0);
+        Self::configure_text_styles(&mut style, false);
 
         cc.egui_ctx.set_style(style);
 
@@ -417,6 +441,7 @@ impl MyApp {
         }
         app.markdown_cache = CommonMarkCache::default();
         app.show_mobile_menu = false;
+        app.compact_text_styles = false;
 
         app.pull_route_from_browser();
         app.sync_blog_selection_from_route();
@@ -434,6 +459,10 @@ impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.ensure_theme(ctx);
 
+        let screen_width = ctx.input(|input| input.screen_rect.width());
+        let is_compact = screen_width < 520.0;
+        self.update_text_styles_for_screen(ctx, is_compact);
+
         // Only update style if hyperlink color needs to be green (to avoid constant style updates)
         if ctx.style().visuals.hyperlink_color != egui::Color32::from_rgb(22, 163, 74) {
             let mut style = (*ctx.style()).clone();
@@ -447,8 +476,6 @@ impl eframe::App for MyApp {
         self.pull_route_from_browser();
         self.sync_blog_selection_from_route();
 
-        let screen_width = ctx.input(|input| input.screen_rect.width());
-        let is_compact = screen_width < 520.0;
         if !is_compact {
             self.show_mobile_menu = false;
         }
@@ -510,12 +537,15 @@ impl eframe::App for MyApp {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
-            match self.current_page.clone() {
-                Page::Home => self.show_home(ui),
-                Page::Projects => self.show_projects(ui),
-                Page::Blog | Page::BlogPost(_) => self.show_blog(ui),
-            }
+            egui::ScrollArea::vertical()
+                .auto_shrink([false; 2])
+                .show(ui, |ui| {
+                    match self.current_page.clone() {
+                        Page::Home => self.show_home(ui),
+                        Page::Projects => self.show_projects(ui),
+                        Page::Blog | Page::BlogPost(_) => self.show_blog(ui),
+                    }
+                });
         });
 
         if is_compact && self.show_mobile_menu {
@@ -861,7 +891,6 @@ impl MyApp {
                                     ui.add_space(12.0);
 
                                     ui.horizontal(|ui| {
-                                        ui.add_space(20.0);
 
                                         ui.vertical(|ui| {
                                             ui.style_mut().override_text_style =
