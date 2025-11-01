@@ -30,6 +30,8 @@ We use [Trunk](https://trunkrs.dev/) to build for web target.
 
 `chmod +x new_post.sh`
 
+### To do
 
-
+Add tags feature to blogs
+Fix the formatting issue with the menu toggle button
 
