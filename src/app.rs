@@ -388,6 +388,7 @@ impl MyApp {
         Self::configure_text_styles(&mut style, compact);
         ctx.set_style(style);
         self.compact_text_styles = compact;
+        self.markdown_cache = CommonMarkCache::default();
     }
 
     fn ensure_theme(&self, ctx: &egui::Context) {
@@ -726,7 +727,7 @@ impl MyApp {
                 ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading2".into()));
                 ui.hyperlink_to("Github", "https://github.com/ostenloo");
                 ui.hyperlink_to("Linkedin", "https://www.linkedin.com/in/austindasunliu/");
-                ui.hyperlink_to("Resume", "https://drive.google.com/file/d/18TzUzxpuevB1W5LIDFtFhrw2rXruR1Hd/view?usp=sharing");
+                ui.hyperlink_to("Resume", "https://drive.google.com/file/d/1L3IDJ-S8pwfDuSa4uCvNRD7HRwkQ9olX/view?usp=sharing");
             });
         });
     }
