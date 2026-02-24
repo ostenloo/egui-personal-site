@@ -4,6 +4,10 @@ use egui_extras::{Size, StripBuilder};
 use include_dir::{include_dir, Dir};
 
 static BLOG_POSTS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/blog_posts");
+static PRIVATE_BLOG_POSTS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/private_blog_posts");
+
+// Password for private blog posts (in production, use environment variables or secure storage)
+const PRIVATE_BLOG_PASSWORD: &str = "austin2321";
 
 #[derive(Clone)]
 pub struct BlogPost {
@@ -21,6 +25,8 @@ enum Page {
     Projects,
     Blog,
     BlogPost(String),
+    PrivateBlog,
+    PrivateBlogPost(String),
 }
 
 impl Page {
@@ -41,6 +47,8 @@ impl Page {
             (Some("projects"), _) => Page::Projects,
             (Some("blog"), None | Some("")) => Page::Blog,
             (Some("blog"), Some(slug)) => Page::BlogPost(slug.to_string()),
+            (Some("private"), None | Some("")) => Page::PrivateBlog,
+            (Some("private"), Some(slug)) => Page::PrivateBlogPost(slug.to_string()),
             _ => Page::Home,
         }
     }
@@ -52,6 +60,8 @@ impl Page {
             Page::Projects => "/projects".to_string(),
             Page::Blog => "/blog".to_string(),
             Page::BlogPost(slug) => format!("/blog/{}", slug),
+            Page::PrivateBlog => "/private".to_string(),
+            Page::PrivateBlogPost(slug) => format!("/private/{}", slug),
         }
     }
 }
@@ -280,13 +290,19 @@ pub struct MyApp {
     #[serde(skip)] // Don't serialize blog posts and cache
     blog_posts: Vec<BlogPost>,
     selected_blog: Option<usize>,
+    
+    #[serde(skip)] // Private blog posts
+    private_blog_posts: Vec<BlogPost>,
+    selected_private_blog: Option<usize>,
+    
+    #[serde(skip)] // Password authentication state (don't serialize for security)
+    is_private_authenticated: bool,
+    password_input: String,
 
     #[serde(skip)] // Don't serialize the cache
     markdown_cache: CommonMarkCache,
     #[serde(skip)] // UI-only overlay state
     show_mobile_menu: bool,
-    #[serde(skip)]
-    compact_text_styles: bool,
 }
 
 impl Default for MyApp {
@@ -299,9 +315,12 @@ impl Default for MyApp {
             prefer_dark: true,
             blog_posts: Self::create_sample_blog_posts(),
             selected_blog: None,
+            private_blog_posts: Self::create_private_blog_posts(),
+            selected_private_blog: None,
+            is_private_authenticated: false,
+            password_input: String::new(),
             markdown_cache: CommonMarkCache::default(),
             show_mobile_menu: false,
-            compact_text_styles: false,
         }
     }
 }
@@ -320,75 +339,6 @@ impl MyApp {
             // Small screen: minimal margins, start from left edge
             (16.0, 16.0)
         }
-    }
-
-    fn configure_text_styles(style: &mut egui::Style, compact: bool) {
-        let heading1 = if compact { 26.0 } else { 34.0 };
-        let heading2 = if compact { 21.0 } else { 27.0 };
-        let heading3 = if compact { 18.0 } else { 23.0 };
-        let heading = heading2;
-        let body = if compact { 14.0 } else { 16.0 };
-        let monospace = if compact { 14.0 } else { 15.0 };
-        let small = if compact { 13.0 } else { 14.0 };
-        let button = if compact { 14.0 } else { 16.0 };
-
-        style.text_styles = [
-            (
-                egui::TextStyle::Name("Heading1".into()),
-                egui::FontId::new(heading1, egui::FontFamily::Proportional),
-            ),
-            (
-                egui::TextStyle::Name("Heading2".into()),
-                egui::FontId::new(heading2, egui::FontFamily::Proportional),
-            ),
-            (
-                egui::TextStyle::Name("Heading3".into()),
-                egui::FontId::new(heading3, egui::FontFamily::Proportional),
-            ),
-            (
-                egui::TextStyle::Heading,
-                egui::FontId::new(heading, egui::FontFamily::Proportional),
-            ),
-            (
-                egui::TextStyle::Body,
-                egui::FontId::new(body, egui::FontFamily::Proportional),
-            ),
-            (
-                egui::TextStyle::Monospace,
-                egui::FontId::new(monospace, egui::FontFamily::Monospace),
-            ),
-            (
-                egui::TextStyle::Small,
-                egui::FontId::new(small, egui::FontFamily::Proportional),
-            ),
-            (
-                egui::TextStyle::Button,
-                egui::FontId::new(button, egui::FontFamily::Proportional),
-            ),
-        ]
-        .into();
-
-        style.spacing.item_spacing = if compact {
-            egui::vec2(6.0, 10.0)
-        } else {
-            egui::vec2(8.0, 12.0)
-        };
-        style.spacing.button_padding = if compact {
-            egui::vec2(10.0, 6.0)
-        } else {
-            egui::vec2(12.0, 8.0)
-        };
-    }
-
-    fn update_text_styles_for_screen(&mut self, ctx: &egui::Context, compact: bool) {
-        if self.compact_text_styles == compact {
-            return;
-        }
-        let mut style = (*ctx.style()).clone();
-        Self::configure_text_styles(&mut style, compact);
-        ctx.set_style(style);
-        self.compact_text_styles = compact;
-        self.markdown_cache = CommonMarkCache::default();
     }
 
     fn ensure_theme(&self, ctx: &egui::Context) {
@@ -417,7 +367,44 @@ impl MyApp {
 
         let mut style = (*cc.egui_ctx.style()).clone();
 
-        Self::configure_text_styles(&mut style, false);
+        style.text_styles = [
+            (
+                egui::TextStyle::Name("Heading1".into()),
+                egui::FontId::new(34.0, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Name("Heading2".into()),
+                egui::FontId::new(27.0, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Name("Heading3".into()),
+                egui::FontId::new(23.0, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Heading,
+                egui::FontId::new(27.0, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Body,
+                egui::FontId::new(16.0, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Monospace,
+                egui::FontId::new(15.0, egui::FontFamily::Monospace),
+            ),
+            (
+                egui::TextStyle::Small,
+                egui::FontId::new(14.0, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Button,
+                egui::FontId::new(16.0, egui::FontFamily::Proportional),
+            ),
+        ]
+        .into();
+
+        style.spacing.item_spacing = egui::vec2(8.0, 12.0);
+        style.spacing.button_padding = egui::vec2(12.0, 8.0);
 
         cc.egui_ctx.set_style(style);
 
@@ -442,7 +429,6 @@ impl MyApp {
         }
         app.markdown_cache = CommonMarkCache::default();
         app.show_mobile_menu = false;
-        app.compact_text_styles = false;
 
         app.pull_route_from_browser();
         app.sync_blog_selection_from_route();
@@ -462,8 +448,6 @@ impl eframe::App for MyApp {
 
         let screen_width = ctx.input(|input| input.screen_rect.width());
         let is_compact = screen_width < 520.0;
-        self.update_text_styles_for_screen(ctx, is_compact);
-
         // Only update style if hyperlink color needs to be green (to avoid constant style updates)
         if ctx.style().visuals.hyperlink_color != egui::Color32::from_rgb(22, 163, 74) {
             let mut style = (*ctx.style()).clone();
@@ -540,12 +524,11 @@ impl eframe::App for MyApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical()
                 .auto_shrink([false; 2])
-                .show(ui, |ui| {
-                    match self.current_page.clone() {
-                        Page::Home => self.show_home(ui),
-                        Page::Projects => self.show_projects(ui),
-                        Page::Blog | Page::BlogPost(_) => self.show_blog(ui),
-                    }
+                .show(ui, |ui| match self.current_page.clone() {
+                    Page::Home => self.show_home(ui),
+                    Page::Projects => self.show_projects(ui),
+                    Page::Blog | Page::BlogPost(_) => self.show_blog(ui),
+                    Page::PrivateBlog | Page::PrivateBlogPost(_) => self.show_private_blog(ui),
                 });
         });
 
@@ -838,11 +821,14 @@ impl MyApp {
                         ui.spacing_mut().indent = 24.0;
 
                         let viewer_id = format!("blog_{}", blog_post.slug.as_str());
-                        CommonMarkViewer::new(viewer_id).show(
-                            ui,
-                            &mut self.markdown_cache,
-                            &blog_post.content,
-                        );
+                        ui.scope(|ui| {
+                            ui.style_mut().override_text_style = Some(egui::TextStyle::Small);
+                            CommonMarkViewer::new(viewer_id).show(
+                                ui,
+                                &mut self.markdown_cache,
+                                &blog_post.content,
+                            );
+                        });
 
                         ui.add_space(60.0);
                     });
@@ -892,7 +878,6 @@ impl MyApp {
                                     ui.add_space(12.0);
 
                                     ui.horizontal(|ui| {
-
                                         ui.vertical(|ui| {
                                             ui.style_mut().override_text_style =
                                                 Some(egui::TextStyle::Name("Heading2".into()));
@@ -936,11 +921,241 @@ impl MyApp {
         }
     }
 
+    fn show_private_blog(&mut self, ui: &mut egui::Ui) {
+        // Check if authenticated
+        if !self.is_private_authenticated {
+            // Show password prompt
+            ui.add_space(24.0);
+            
+            let screen_width = ui.available_width();
+            let (left_margin, right_margin) = Self::calculate_responsive_margins(screen_width);
+            
+            ui.horizontal(|ui| {
+                ui.add_space(left_margin);
+                
+                ui.vertical(|ui| {
+                    let content_width = ui.available_width() - right_margin;
+                    ui.set_max_width(content_width);
+                    
+                    ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading1".into()));
+                    ui.label("Private Blog");
+                    
+                    ui.add_space(40.0);
+                    
+                    ui.style_mut().override_text_style = Some(egui::TextStyle::Body);
+                    ui.label("This section is password protected.");
+                    
+                    ui.add_space(20.0);
+                    
+                    ui.horizontal(|ui| {
+                        ui.label("Password:");
+                        let response = ui.add(
+                            egui::TextEdit::singleline(&mut self.password_input)
+                                .password(true)
+                                .desired_width(200.0)
+                        );
+                        
+                        if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                            if self.password_input == PRIVATE_BLOG_PASSWORD {
+                                self.is_private_authenticated = true;
+                                self.password_input.clear();
+                            } else {
+                                self.password_input.clear();
+                            }
+                        }
+                        
+                        if ui.button("Submit").clicked() {
+                            if self.password_input == PRIVATE_BLOG_PASSWORD {
+                                self.is_private_authenticated = true;
+                                self.password_input.clear();
+                            } else {
+                                self.password_input.clear();
+                            }
+                        }
+                    });
+                    
+                    ui.add_space(40.0);
+                });
+            });
+            
+            return;
+        }
+        
+        // Authenticated - show private blog content
+        if let Some(blog_index) = self.selected_private_blog {
+            if let Some(blog_post) = self.private_blog_posts.get(blog_index) {
+                let mut back_to_list = false;
+
+                ui.add_space(16.0);
+
+                let screen_width = ui.available_width();
+                let (left_margin, right_margin) = Self::calculate_responsive_margins(screen_width);
+                let show_dates = screen_width >= 520.0;
+
+                ui.horizontal(|ui| {
+                    ui.add_space(left_margin);
+
+                    ui.vertical(|ui| {
+                        let content_width = ui.available_width() - right_margin;
+                        ui.set_max_width(content_width);
+
+                        if ui.button("< Back to Private Blog List").clicked() {
+                            back_to_list = true;
+                        }
+
+                        ui.add_space(32.0);
+
+                        ui.style_mut().override_text_style =
+                            Some(egui::TextStyle::Name("Heading1".into()));
+                        ui.label(&blog_post.title);
+
+                        ui.add_space(12.0);
+
+                        if show_dates {
+                            ui.style_mut().override_text_style = Some(egui::TextStyle::Small);
+                            ui.colored_label(
+                                egui::Color32::from_rgb(120, 120, 120),
+                                &blog_post.date_display,
+                            );
+                        }
+
+                        ui.add_space(40.0);
+
+                        ui.spacing_mut().item_spacing.y = 20.0;
+                        ui.spacing_mut().indent = 24.0;
+
+                        let viewer_id = format!("private_blog_{}", blog_post.slug.as_str());
+                        ui.scope(|ui| {
+                            ui.style_mut().override_text_style = Some(egui::TextStyle::Small);
+                            CommonMarkViewer::new(viewer_id).show(
+                                ui,
+                                &mut self.markdown_cache,
+                                &blog_post.content,
+                            );
+                        });
+
+                        ui.add_space(60.0);
+                    });
+                });
+
+                if back_to_list {
+                    self.selected_private_blog = None;
+                    self.current_page = Page::PrivateBlog;
+                    self.push_route_to_browser();
+                }
+            } else {
+                self.selected_private_blog = None;
+            }
+        } else {
+            // Show private blog list
+            ui.add_space(24.0);
+
+            let screen_width = ui.available_width();
+            let (left_margin, right_margin) = Self::calculate_responsive_margins(screen_width);
+            let show_dates = screen_width >= 520.0;
+
+            ui.horizontal(|ui| {
+                ui.add_space(left_margin);
+
+                ui.vertical(|ui| {
+                    let content_width = ui.available_width() - right_margin;
+                    ui.set_max_width(content_width);
+
+                    ui.style_mut().override_text_style =
+                        Some(egui::TextStyle::Name("Heading1".into()));
+                    ui.label("Private Blog");
+
+                    ui.add_space(40.0);
+
+                    for index in 0..self.private_blog_posts.len() {
+                        let blog_post = &self.private_blog_posts[index];
+                        let title = blog_post.title.clone();
+                        let slug = blog_post.slug.clone();
+                        let date_display = blog_post.date_display.clone();
+                        let mut open_post = false;
+
+                        egui::Frame::group(&ui.style())
+                            .stroke(egui::Stroke::NONE)
+                            .rounding(egui::Rounding::ZERO)
+                            .show(ui, |ui| {
+                                ui.set_width(ui.available_width());
+                                ui.vertical(|ui| {
+                                    ui.add_space(12.0);
+
+                                    ui.horizontal(|ui| {
+                                        ui.vertical(|ui| {
+                                            ui.style_mut().override_text_style =
+                                                Some(egui::TextStyle::Name("Heading2".into()));
+                                            if ui.link(&title).clicked() {
+                                                open_post = true;
+                                            }
+                                        });
+
+                                        if show_dates {
+                                            ui.with_layout(
+                                                egui::Layout::right_to_left(egui::Align::TOP),
+                                                |ui| {
+                                                    ui.add_space(20.0);
+                                                    ui.style_mut().override_text_style =
+                                                        Some(egui::TextStyle::Small);
+                                                    ui.colored_label(
+                                                        egui::Color32::from_rgb(120, 120, 120),
+                                                        &date_display,
+                                                    );
+                                                },
+                                            );
+                                        }
+                                    });
+
+                                    ui.add_space(16.0);
+                                });
+                            });
+
+                        ui.add_space(16.0);
+
+                        if open_post {
+                            self.selected_private_blog = Some(index);
+                            self.current_page = Page::PrivateBlogPost(slug);
+                            self.push_route_to_browser();
+                        }
+                    }
+
+                    ui.add_space(40.0);
+                });
+            });
+        }
+    }
+
     fn create_sample_blog_posts() -> Vec<BlogPost> {
         let mut posts = Vec::new();
 
         // Automatically discover all .md files in the blog_posts directory
         for file in BLOG_POSTS_DIR.files() {
+            if let Some(extension) = file.path().extension() {
+                if extension == "md" {
+                    if let Ok(content) = std::str::from_utf8(file.contents()) {
+                        let slug = file
+                            .path()
+                            .file_stem()
+                            .map(|stem| stem.to_string_lossy().to_string())
+                            .unwrap_or_default();
+                        posts.push(Self::parse_blog_post(content, slug));
+                    }
+                }
+            }
+        }
+
+        // Sort posts by published timestamp (newest first)
+        posts.sort_by(|a, b| b.published_at.cmp(&a.published_at));
+
+        posts
+    }
+
+    fn create_private_blog_posts() -> Vec<BlogPost> {
+        let mut posts = Vec::new();
+
+        // Automatically discover all .md files in the private_blog_posts directory
+        for file in PRIVATE_BLOG_POSTS_DIR.files() {
             if let Some(extension) = file.path().extension() {
                 if extension == "md" {
                     if let Ok(content) = std::str::from_utf8(file.contents()) {
@@ -1042,6 +1257,18 @@ impl MyApp {
             }
             Page::Blog => {
                 self.selected_blog = None;
+            }
+            Page::PrivateBlogPost(slug) => {
+                if let Some(index) = self.private_blog_posts.iter().position(|post| post.slug == slug) {
+                    self.selected_private_blog = Some(index);
+                } else {
+                    self.selected_private_blog = None;
+                    self.current_page = Page::PrivateBlog;
+                    self.push_route_to_browser();
+                }
+            }
+            Page::PrivateBlog => {
+                self.selected_private_blog = None;
             }
             _ => {}
         }
