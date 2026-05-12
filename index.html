@@ -62,18 +62,18 @@
             width: 100%;
         }
 
-        /* Position canvas in center-top: */
+        /* eframe sets canvas style.width/height via inline styles on every frame.
+           On the first frame it may read a wrong parent.clientWidth and write a
+           narrow pixel value, causing a brief layout flash with black bars on the
+           sides. !important ensures the canvas always fills the viewport regardless
+           of what eframe writes to the inline style. */
         canvas {
-            margin-right: auto;
-            margin-left: auto;
             display: block;
             position: absolute;
-            top: 0%;
-            left: 50%;
-            transform: translate(-50%, 0%);
-            /* Explicit sizing for development - helps with debugging */
-            width: 100vw;
-            height: 100vh;
+            top: 0;
+            left: 0;
+            width: 100vw !important;
+            height: 100vh !important;
         }
 
         .centered {
@@ -124,8 +124,6 @@
 </head>
 
 <body>
-    <!-- The WASM code will resize the canvas dynamically -->
-    <!-- the id is hardcoded in main.rs . so, make sure both match. -->
     <canvas id="the_canvas_id"></canvas>
 
     <!--Register Service Worker. this will cache the wasm / js scripts for offline use (for PWA functionality). -->
@@ -138,30 +136,6 @@
                 navigator.serviceWorker.register('sw.js');
             });
         }
-    </script>
-
-    <!-- Apply saved theme before first paint to prevent FOUC -->
-    <script>
-        (function() {
-            // Pre-size canvas to prevent layout shift
-            var canvas = document.getElementById('the_canvas_id');
-            canvas.setAttribute('width', window.innerWidth);
-            canvas.setAttribute('height', window.innerHeight);
-            
-            // Apply saved theme
-            var stored = localStorage.getItem('egui_app_state');
-            var isDark = true; // default
-            if (stored) {
-                try {
-                    var state = JSON.parse(stored);
-                    if (state.hasOwnProperty('prefer_dark')) {
-                        isDark = state.prefer_dark;
-                    }
-                } catch(e) {}
-            }
-            document.body.style.background = isDark ? '#252525' : '#fafafa';
-            document.body.classList.remove('loading');
-        })();
     </script>
 </body>
 

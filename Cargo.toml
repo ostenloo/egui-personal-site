@@ -11,13 +11,13 @@ rust-version = "1.81"
 egui = "0.27.0"
 
 # Markdown rendering in egui (CommonMark-compatible)
-egui_commonmark = { version = "0.16", features = ["macros"] }
+egui_commonmark = { version = "0.16", features = ["macros", "better_syntax_highlighting"] }
 
 # Embedding static files (for blog posts)
 include_dir = "0.7"
 
 # Layout helpers
-egui_extras = "0.27"
+egui_extras = { version = "0.27", features = ["syntect"] }
 
 # Serialization for saving app state
 serde = { version = "1.0", features = ["derive"] }

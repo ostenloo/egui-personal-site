@@ -72,20 +72,219 @@ pub fn parse_content_segments(content: &str) -> Vec<ContentSegment> {
     segments
 }
 
+/// A segment of parsed content: either plain markdown text or a code block
+#[derive(Clone)]
+pub enum ParsedSegment {
+    Text(String),
+    CodeBlock { lang: String, code: String },
+}
+
+/// Parse markdown into segments, extracting fenced code blocks (```...```) so we can render
+/// them with custom styling instead of relying on egui_commonmark's defaults.
+pub fn parse_markdown_with_code_blocks(content: &str) -> Vec<ParsedSegment> {
+    let mut segments = Vec::new();
+    let mut remaining = content.to_string();
+
+    loop {
+        if let Some(start) = remaining.find("```") {
+            // Find the language identifier (if any) after the opening ```
+            let after_open = &remaining[start + 3..];
+            let (lang, code_start_offset) = if let Some(newline_pos) = after_open.find('\n') {
+                let lang = after_open[..newline_pos].trim().to_string();
+                (lang, start + 3 + newline_pos + 1)
+            } else {
+                // No newline after ``` — treat everything as code with no language
+                (String::new(), start + 3)
+            };
+
+            // Find the closing ```
+            if let Some(end_rel) = remaining[code_start_offset..].find("```") {
+                let code = remaining[code_start_offset..code_start_offset + end_rel]
+                    .trim_end_matches('\n')
+                    .to_string();
+                let after_close = code_start_offset + end_rel + 3;
+
+                // Add text before the code block
+                if start > 0 {
+                    let before = remaining[..start].to_string();
+                    if !before.trim().is_empty() {
+                        segments.push(ParsedSegment::Text(before));
+                    } else {
+                        // Add empty string to preserve spacing
+                        segments.push(ParsedSegment::Text(String::new()));
+                    }
+                }
+
+                // Add the code block
+                segments.push(ParsedSegment::CodeBlock { lang, code });
+
+                // Continue with text after the code block
+                remaining = remaining[after_close..].to_string();
+            } else {
+                // No closing ``` found, treat the rest as text
+                if !remaining.trim().is_empty() {
+                    segments.push(ParsedSegment::Text(remaining));
+                }
+                break;
+            }
+        } else {
+            // No more code blocks
+            if !remaining.trim().is_empty() {
+                segments.push(ParsedSegment::Text(remaining));
+            } else if remaining.contains('\n') {
+                // Preserve whitespace/newlines
+                segments.push(ParsedSegment::Text(remaining));
+            }
+            break;
+        }
+    }
+
+    segments
+}
+
+/// Render a single code block with custom styling: dark background, small font, copy button
+pub fn render_code_block(ui: &mut egui::Ui, lang: &str, code: &str) {
+    let mut copied = false;
+    let is_collapsed = lang.is_empty();
+
+    ui.add_space(8.0);
+
+    if !is_collapsed {
+        // Show language as header, collapsible
+        egui::CollapsingHeader::new(
+            egui::RichText::new(&*lang).monospace().strong()
+        ).show(ui, |ui| {
+            render_code_block_content(ui, lang, code, &mut copied);
+        });
+    } else {
+        // No language — render directly
+        render_code_block_content(ui, "", code, &mut copied);
+    }
+
+    ui.add_space(8.0);
+}
+
+/// Normalize a language identifier to a syntect-compatible file extension.
+/// Fenced code blocks use language names ("rust"), but syntect needs extensions ("rs").
+fn lang_to_syntect_ext(lang: &str) -> &str {
+    let lower = lang.to_lowercase();
+    match lower.as_str() {
+        "rust" => "rs",
+        "python" => "py",
+        "javascript" | "typescript" | "ts" => "js",
+        "css" => "css",
+        "html" => "html",
+        "json" => "json",
+        "toml" => "toml",
+        "yaml" | "yml" => "yaml",
+        "markdown" | "md" => "md",
+        "bash" | "sh" | "shell" => "sh",
+        "go" => "go",
+        "c" => "c",
+        "c++" | "cpp" => "cpp",
+        "java" => "java",
+        "ruby" => "rb",
+        "swift" => "swift",
+        "php" => "php",
+        "kotlin" | "kt" => "kt",
+        "sql" => "sql",
+        "xml" => "xml",
+        // Already a file extension (pass through)
+        "rs" | "py" | "js" | "tsx" | "cc" | "h" | "hpp" | "rb" => lang,
+        _ => lang,
+    }
+}
+
+/// Map a filename to a syntax highlighting language identifier.
+/// Returns file extension (not language name) since syntect's find_syntax_by_name is case-sensitive
+/// and find_syntax_by_extension is the reliable lookup path.
+fn lang_from_filename(filename: &str) -> &str {
+    let ext = filename.split('.').last().unwrap_or("");
+    match ext {
+        // These extensions are recognized by syntect's default SyntaxSet
+        "rs" | "py" | "js" | "css" | "html" | "json" | "yaml" | "yml" | "sh" | "go" | "c" | "cpp"
+        | "cc" | "h" | "hpp" | "java" | "rb" | "php" | "sql" | "xml" | "md" => ext,
+        // Fallbacks for unsupported languages
+        "ts" | "tsx" => "js", // TypeScript → JavaScript
+        "kt" => "",            // Kotlin → plain text
+        "swift" => "",         // Swift → plain text
+        "toml" => "",          // TOML → plain text
+        "txt" | "log" | "conf" | "cfg" | "ini" | "env" => "",
+        _ => "",
+    }
+}
+
+fn render_code_block_content(ui: &mut egui::Ui, lang: &str, code: &str, _copied: &mut bool) {
+    let block_id = ui.id();
+
+    // Track copy state with timestamp so "✔ Copied" fades after 2 seconds
+    let copied_at = ui.memory_mut(|m| *m.data.get_temp_mut_or(block_id, f64::NEG_INFINITY));
+    let now = ui.input(|i| i.time);
+    let is_copied = now - copied_at < 2.0;
+
+    egui::Frame::group(ui.style())
+        .fill(egui::Color32::from_rgb(24, 24, 24))
+        .show(ui, |ui| {
+            // Copy button in top-right corner
+            ui.horizontal(|ui| {
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    let btn = if is_copied {
+                        ui.small_button("✔ Copied")
+                    } else {
+                        ui.small_button("Copy")
+                    };
+                    if btn.clicked() {
+                        ui.ctx().copy_text(code.to_string());
+                        ui.memory_mut(|m| *m.data.get_temp_mut_or(block_id, f64::NEG_INFINITY) = now);
+                    }
+                });
+            });
+
+            ui.add_space(4.0);
+
+            // Syntax-highlighted code using egui_extras
+            let code_theme = egui_extras::syntax_highlighting::CodeTheme::from_style(ui.style());
+            let syntect_lang = lang_to_syntect_ext(lang);
+            let job = egui_extras::syntax_highlighting::highlight(
+                ui.ctx(),
+                &code_theme,
+                code,
+                syntect_lang,
+            );
+            ui.add(egui::Label::new(job).wrap(false));
+        });
+}
+
 /// Render content segments with collapsible code blocks
 pub fn render_segments(ui: &mut egui::Ui, cache: &mut CommonMarkCache, segments: &[ContentSegment]) {
     for (idx, segment) in segments.iter().enumerate() {
-        // Render markdown text
+        // Render markdown text (which may contain standard fenced code blocks)
         if !segment.text.trim().is_empty() {
-            let viewer_id = ui.id().with(idx);
-            CommonMarkViewer::new(viewer_id).show(
-                ui,
-                cache,
-                &segment.text,
-            );
+            // Extract fenced code blocks from the markdown text for custom rendering
+            let parsed = parse_markdown_with_code_blocks(&segment.text);
+            for (sub_idx, parsed_seg) in parsed.into_iter().enumerate() {
+                match parsed_seg {
+                    ParsedSegment::Text(text) => {
+                        if !text.trim().is_empty() {
+                            let viewer_id = ui.id().with((idx, sub_idx));
+                            CommonMarkViewer::new(viewer_id).show(
+                                ui,
+                                cache,
+                                &text,
+                            );
+                        } else if !text.is_empty() {
+                            // Preserve whitespace/newlines
+                            ui.add(egui::Label::new(egui::RichText::new("\n")).wrap(false));
+                        }
+                    }
+                    ParsedSegment::CodeBlock { lang, code } => {
+                        render_code_block(ui, &lang, &code);
+                    }
+                }
+            }
         }
-        
-        // Render collapsible code blocks
+
+        // Render collapsible code blocks (from <details> tags)
         for (filename, code) in &segment.code_blocks {
             ui.add_space(8.0);
             egui::CollapsingHeader::new(
@@ -93,11 +292,7 @@ pub fn render_segments(ui: &mut egui::Ui, cache: &mut CommonMarkCache, segments:
                     .monospace()
                     .strong()
             ).show(ui, |ui| {
-                egui::Frame::group(ui.style())
-                    .fill(ui.style().visuals.code_bg_color)
-                    .show(ui, |ui| {
-                        ui.monospace(code);
-                    });
+                render_code_block_content(ui, lang_from_filename(filename), code, &mut false);
             });
             ui.add_space(8.0);
         }
