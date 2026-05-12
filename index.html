@@ -64,7 +64,7 @@
         canvas {
             margin-right: auto;
             margin-left: auto;
-            display: block;
+            display: none;
             position: absolute;
             top: 0%;
             left: 50%;
@@ -72,6 +72,10 @@
             /* Explicit sizing for development - helps with debugging */
             width: 100vw;
             height: 100vh;
+        }
+
+        canvas.ready {
+            display: block;
         }
 
         .centered {
@@ -136,6 +140,18 @@
                 navigator.serviceWorker.register('sw.js');
             });
         }
+    </script>
+
+    <!-- Hide canvas until egui is ready to prevent FOUC -->
+    <script>
+        var canvas = document.getElementById('the_canvas_id');
+        var observer = new MutationObserver(function(mutations, obs) {
+            if (canvas.width > 0 && canvas.height > 0) {
+                canvas.classList.add('ready');
+                obs.disconnect();
+            }
+        });
+        observer.observe(canvas, { attributes: true, attributeFilter: ['width', 'height'] });
     </script>
 </body>
 
