@@ -144,14 +144,14 @@
 
     <!-- Hide canvas until egui is ready to prevent FOUC -->
     <script>
-        var canvas = document.getElementById('the_canvas_id');
-        var observer = new MutationObserver(function(mutations, obs) {
-            if (canvas.width > 0 && canvas.height > 0) {
+        // Wait for egui to finish rendering the first frame before showing the canvas
+        (function() {
+            var canvas = document.getElementById('the_canvas_id');
+            // Wait 200ms for egui to initialize and apply saved theme
+            setTimeout(function() {
                 canvas.classList.add('ready');
-                obs.disconnect();
-            }
-        });
-        observer.observe(canvas, { attributes: true, attributeFilter: ['width', 'height'] });
+            }, 200);
+        })();
     </script>
 </body>
 
