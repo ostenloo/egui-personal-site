@@ -152,7 +152,7 @@ pub fn render_code_block(ui: &mut egui::Ui, lang: &str, code: &str) {
     if !is_collapsed {
         // Show language as header, collapsible
         egui::CollapsingHeader::new(
-            egui::RichText::new(&*lang).monospace().strong()
+            egui::RichText::new(lang).monospace().strong()
         ).show(ui, |ui| {
             render_code_block_content(ui, lang, code, &mut copied);
         });
@@ -199,7 +199,7 @@ fn lang_to_syntect_ext(lang: &str) -> &str {
 /// Returns file extension (not language name) since syntect's find_syntax_by_name is case-sensitive
 /// and find_syntax_by_extension is the reliable lookup path.
 fn lang_from_filename(filename: &str) -> &str {
-    let ext = filename.split('.').last().unwrap_or("");
+    let ext = filename.split('.').next_back().unwrap_or("");
     match ext {
         // These extensions are recognized by syntect's default SyntaxSet
         "rs" | "py" | "js" | "css" | "html" | "json" | "yaml" | "yml" | "sh" | "go" | "c" | "cpp"
