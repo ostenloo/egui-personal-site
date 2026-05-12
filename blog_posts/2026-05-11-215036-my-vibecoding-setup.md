@@ -821,6 +821,8 @@ export const protectedPaths: RegExp[] = [
 
 **StackOverflow.** Does anyone still remember this site? 
 
+**Arch Linux.** I want to have a life outside of coding. 
+
 ### My Underlying Philosophy
 
 AI applied to the field of Software Engineering has two functionalities. One is utility -- it can genuinely produce far more output than a developer who is working without AI. The other is augmentation. It can augment our existing processes and our understanding. I've learned a lot from asking AI about how things work under the hood, and it can explain this in detail. 
