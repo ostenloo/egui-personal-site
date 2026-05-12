@@ -538,6 +538,20 @@ impl MyApp {
         app.markdown_cache = CommonMarkCache::default();
         app.show_mobile_menu = false;
 
+        // Apply saved theme immediately to avoid FOUC
+        {
+            let mut visuals = if app.prefer_dark {
+                egui::Visuals::dark()
+            } else {
+                egui::Visuals::light()
+            };
+            let accent = egui::Color32::from_rgb(22, 163, 74);
+            visuals.hyperlink_color = accent;
+            visuals.selection.bg_fill = accent.linear_multiply(0.2);
+            visuals.selection.stroke.color = accent;
+            cc.egui_ctx.set_visuals(visuals);
+        }
+
         app.pull_route_from_browser();
         app.sync_blog_selection_from_route();
         app
