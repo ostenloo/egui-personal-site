@@ -74,14 +74,10 @@ pub fn parse_content_segments(content: &str) -> Vec<ContentSegment> {
 
 /// Render content segments with collapsible code blocks
 pub fn render_segments(ui: &mut egui::Ui, cache: &mut CommonMarkCache, segments: &[ContentSegment]) {
-    use std::sync::atomic::{AtomicU64, Ordering};
-    static VIEWER_COUNTER: AtomicU64 = AtomicU64::new(0);
-    
-    for segment in segments {
+    for (idx, segment) in segments.iter().enumerate() {
         // Render markdown text
         if !segment.text.trim().is_empty() {
-            let id = VIEWER_COUNTER.fetch_add(1, Ordering::Relaxed);
-            let viewer_id = egui::Id::new(id);
+            let viewer_id = ui.id().with(idx);
             CommonMarkViewer::new(viewer_id).show(
                 ui,
                 cache,
