@@ -2,7 +2,93 @@ use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use egui_commonmark::{CommonMarkCache, CommonMarkViewer};
 use egui_extras::{Size, StripBuilder};
 use include_dir::{include_dir, Dir};
+use regex::Regex;
 
+/// Parse markdown content into a list of segments: either plain markdown text
+/// or collapsible code blocks with filenames.
+pub struct ContentSegment {
+    pub text: String,
+    pub code_blocks: Vec<(String, String)>, // (filename, code)
+}
+
+pub fn parse_content_segments(content: &str) -> Vec<ContentSegment> {
+    let details_re = Regex::new(r"<details>\s*\n\s*<summary><strong>([^)]+)</strong></summary>\s*\n\s*```([^`]+)```\s*\n\s*</details>").unwrap();
+    
+    let mut segments = Vec::new();
+    let mut remaining = content.to_string();
+    
+    loop {
+        if let Some(cap) = details_re.captures(&remaining) {
+            let match_start = cap.get(0).unwrap().start();
+            let filename = cap.get(1).unwrap().as_str().to_string();
+            let code = cap.get(2).unwrap().as_str().to_string();
+            
+            // Add text before the match
+            let before = remaining[..match_start].to_string();
+            if !before.trim().is_empty() {
+                segments.push(ContentSegment { text: before, code_blocks: Vec::new() });
+            }
+            
+            // Add the code block
+            segments.push(ContentSegment {
+                text: String::new(),
+                code_blocks: vec![(filename, code)],
+            });
+            
+            // Continue after the match
+            remaining = remaining[cap.get(0).unwrap().end()..].to_string();
+        } else {
+            // No more matches, add remaining text
+            if !remaining.trim().is_empty() {
+                segments.push(ContentSegment { text: remaining, code_blocks: Vec::new() });
+            }
+            break;
+        }
+    }
+    
+    segments
+}
+
+/// Render content segments with collapsible code blocks
+pub fn render_segments(ui: &mut egui::Ui, cache: &mut CommonMarkCache, segments: &[ContentSegment]) {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static VIEWER_COUNTER: AtomicU64 = AtomicU64::new(0);
+    
+    for segment in segments {
+        // Render markdown text
+        if !segment.text.trim().is_empty() {
+            let id = VIEWER_COUNTER.fetch_add(1, Ordering::Relaxed);
+            let viewer_id = egui::Id::new(id);
+            CommonMarkViewer::new(viewer_id).show(
+                ui,
+                cache,
+                &segment.text,
+            );
+        }
+        
+        // Render collapsible code blocks
+        for (filename, code) in &segment.code_blocks {
+            ui.add_space(8.0);
+            egui::CollapsingHeader::new(
+                egui::RichText::new(filename)
+                    .monospace()
+                    .strong()
+            ).show(ui, |ui| {
+                egui::Frame::group(ui.style())
+                    .fill(ui.style().visuals.code_bg_color)
+                    .show(ui, |ui| {
+                        egui::ScrollArea::vertical()
+                            .auto_shrink([true; 2])
+                            .max_height(400.0)
+                            .show(ui, |ui| {
+                                ui.monospace(code);
+                            });
+                    });
+            });
+            ui.add_space(8.0);
+        }
+    }
+}
 static BLOG_POSTS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/blog_posts");
 static PRIVATE_BLOG_POSTS_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/private_blog_posts");
 
@@ -820,14 +906,10 @@ impl MyApp {
                         ui.spacing_mut().item_spacing.y = 20.0;
                         ui.spacing_mut().indent = 24.0;
 
-                        let viewer_id = format!("blog_{}", blog_post.slug.as_str());
+                        let segments = parse_content_segments(&blog_post.content);
                         ui.scope(|ui| {
                             ui.style_mut().override_text_style = Some(egui::TextStyle::Small);
-                            CommonMarkViewer::new(viewer_id).show(
-                                ui,
-                                &mut self.markdown_cache,
-                                &blog_post.content,
-                            );
+                            render_segments(ui, &mut self.markdown_cache, &segments);
                         });
 
                         ui.add_space(60.0);
@@ -1025,14 +1107,10 @@ impl MyApp {
                         ui.spacing_mut().item_spacing.y = 20.0;
                         ui.spacing_mut().indent = 24.0;
 
-                        let viewer_id = format!("private_blog_{}", blog_post.slug.as_str());
+                        let segments = parse_content_segments(&blog_post.content);
                         ui.scope(|ui| {
                             ui.style_mut().override_text_style = Some(egui::TextStyle::Small);
-                            CommonMarkViewer::new(viewer_id).show(
-                                ui,
-                                &mut self.markdown_cache,
-                                &blog_post.content,
-                            );
+                            render_segments(ui, &mut self.markdown_cache, &segments);
                         });
 
                         ui.add_space(60.0);

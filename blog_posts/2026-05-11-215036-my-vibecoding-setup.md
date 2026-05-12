@@ -23,7 +23,7 @@ I've recently upgraded my utilization of AI from just the ChatGPT and Claude app
 
 **Tailscale.** Tailscale is a VPN that connects devices onto a private network (tailnet), allowing fast and secure access across devices. Each device gets a private IP address that can be used for device to device connection. 
 
-Tailscale Serve is a reverse proxy within the tailnet that allows devices to expose specific ports. So I can actually access localhost from my phone, its not a 1meme! 
+Tailscale Serve is a reverse proxy within the tailnet that allows devices to expose specific ports. So I can actually access localhost from my phone, its not a meme! 
 
 **Termius.** Termius allows you to connect to and control terminals via SSH from my iPhone. With my devices on the tailnet, its faster and more secure than SSH over the public internet. 
 
@@ -37,7 +37,7 @@ Tailscale Serve is a reverse proxy within the tailnet that allows devices to exp
 
 **[Qwen3.6-27b-AWQ-INT4](https://huggingface.co/cyankiwi/Qwen3.6-27B-AWQ-INT4)** This is the local model I run via vLLM. People on the LocalLLama subreddit said its good, so I trusted them. From my experience it is good also. I get around 114 tok/s. 
 
-**Claude Code.** I utilize Claude Code via my Pro subscription (~$200 + tax per year) because it can be used when my local LLM goes down or when I have a more difficult task that my local LLM is struggling with. 
+**Claude Code.** I utilize Claude Code via my Pro subscription (~$200 + tax per year) because it can be used when I need to free up VRAM so I shut down my local LLM or when I have a more difficult task that my local LLM is struggling with. 
 
 **Claude.** I use Opus to talk about design decisions for my projects, and I have it generate detailed instructions for a coding agent to implement. I also like the iOS app's conversation feature sometimes.
 
