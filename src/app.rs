@@ -2,7 +2,6 @@ use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use egui_commonmark::{CommonMarkCache, CommonMarkViewer};
 use egui_extras::{Size, StripBuilder};
 use include_dir::{include_dir, Dir};
-use regex::Regex;
 
 /// Parse markdown content into a list of segments: either plain markdown text
 /// or collapsible code blocks with filenames.
@@ -12,31 +11,55 @@ pub struct ContentSegment {
 }
 
 pub fn parse_content_segments(content: &str) -> Vec<ContentSegment> {
-    let details_re = Regex::new(r"<details>\s*\n\s*<summary><strong>([^<]+)</strong></summary>(\s*\n)+```(.*?)```(\s*\n)+</details>").unwrap();
-    
     let mut segments = Vec::new();
     let mut remaining = content.to_string();
     
     loop {
-        if let Some(cap) = details_re.captures(&remaining) {
-            let match_start = cap.get(0).unwrap().start();
-            let filename = cap.get(1).unwrap().as_str().to_string();
-            let code = cap.get(2).unwrap().as_str().to_string();
-            
-            // Add text before the match
-            let before = remaining[..match_start].to_string();
-            if !before.trim().is_empty() {
-                segments.push(ContentSegment { text: before, code_blocks: Vec::new() });
+        if let Some(start) = remaining.find("<details>") {
+            if let Some(end) = remaining[start..].find("</details>") {
+                let block = &remaining[start..start + end + 11];
+                
+                // Extract filename from <summary><strong>...</strong></summary>
+                let filename = if let Some(sum_start) = block.find("<summary><strong>") {
+                    let sum_rest = &block[sum_start + 17..];
+                    if let Some(sum_end) = sum_rest.find("</strong></summary>") {
+                        sum_rest[..sum_end].trim().to_string()
+                    } else {
+                        continue;
+                    }
+                } else {
+                    continue;
+                };
+                
+                // Extract code from ```...```
+                let code = if let Some(code_start) = block.find("```") {
+                    let code_rest = &block[code_start + 3..];
+                    if let Some(code_end) = code_rest.rfind("```") {
+                        code_rest[..code_end].trim().to_string()
+                    } else {
+                        continue;
+                    }
+                } else {
+                    continue;
+                };
+                
+                // Add text before the match
+                let before = remaining[..start].to_string();
+                if !before.trim().is_empty() {
+                    segments.push(ContentSegment { text: before, code_blocks: Vec::new() });
+                }
+                
+                // Add the code block
+                segments.push(ContentSegment {
+                    text: String::new(),
+                    code_blocks: vec![(filename, code)],
+                });
+                
+                // Continue after the match
+                remaining = remaining[start + end + 11..].to_string();
+            } else {
+                break;
             }
-            
-            // Add the code block
-            segments.push(ContentSegment {
-                text: String::new(),
-                code_blocks: vec![(filename, code)],
-            });
-            
-            // Continue after the match
-            remaining = remaining[cap.get(0).unwrap().end()..].to_string();
         } else {
             // No more matches, add remaining text
             if !remaining.trim().is_empty() {
@@ -384,6 +407,9 @@ pub struct MyApp {
     markdown_cache: CommonMarkCache,
     #[serde(skip)] // UI-only overlay state
     show_mobile_menu: bool,
+    
+    #[serde(skip)] // Flag to save theme immediately
+    theme_changed: bool,
 }
 
 impl Default for MyApp {
@@ -402,6 +428,7 @@ impl Default for MyApp {
             password_input: String::new(),
             markdown_cache: CommonMarkCache::default(),
             show_mobile_menu: false,
+            theme_changed: false,
         }
     }
 }
@@ -593,6 +620,7 @@ impl eframe::App for MyApp {
                                     if response.clicked() {
                                         self.prefer_dark = !self.prefer_dark;
                                         self.ensure_theme(ctx);
+                                        self.theme_changed = true;
                                     }
                                     ui.add_space(4.0);
                                 },
@@ -616,6 +644,14 @@ impl eframe::App for MyApp {
         if is_compact && self.show_mobile_menu {
             self.show_mobile_menu_overlay(ctx);
         }
+        
+        // Save theme immediately if it changed
+        if self.theme_changed {
+            self.theme_changed = false;
+            if let Some(storage) = _frame.storage_mut() {
+                eframe::set_value(storage, eframe::APP_KEY, self);
+            }
+        }
     }
 }
 
@@ -635,6 +671,7 @@ impl MyApp {
         if response.clicked() {
             self.prefer_dark = !self.prefer_dark;
             self.ensure_theme(ctx);
+            self.theme_changed = true;
         }
     }
 

@@ -723,7 +723,7 @@ export const protectedPaths: RegExp[] = [
 ### Qwen Shell Commands
 
 <details>
-<summary><strong> Qwen </strong></summary>
+<summary><strong> qwen </strong></summary>
 
 ```#!/bin/bash
 

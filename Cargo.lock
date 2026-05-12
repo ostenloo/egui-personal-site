@@ -2132,7 +2132,6 @@ dependencies = [
  "env_logger",
  "include_dir",
  "log",
- "regex",
  "serde",
  "wasm-bindgen",
  "wasm-bindgen-futures",
