@@ -290,11 +290,11 @@ pub struct MyApp {
     #[serde(skip)] // Don't serialize blog posts and cache
     blog_posts: Vec<BlogPost>,
     selected_blog: Option<usize>,
-    
+
     #[serde(skip)] // Private blog posts
     private_blog_posts: Vec<BlogPost>,
     selected_private_blog: Option<usize>,
-    
+
     #[serde(skip)] // Password authentication state (don't serialize for security)
     is_private_authenticated: bool,
     password_input: String,
@@ -926,35 +926,36 @@ impl MyApp {
         if !self.is_private_authenticated {
             // Show password prompt
             ui.add_space(24.0);
-            
+
             let screen_width = ui.available_width();
             let (left_margin, right_margin) = Self::calculate_responsive_margins(screen_width);
-            
+
             ui.horizontal(|ui| {
                 ui.add_space(left_margin);
-                
+
                 ui.vertical(|ui| {
                     let content_width = ui.available_width() - right_margin;
                     ui.set_max_width(content_width);
-                    
-                    ui.style_mut().override_text_style = Some(egui::TextStyle::Name("Heading1".into()));
+
+                    ui.style_mut().override_text_style =
+                        Some(egui::TextStyle::Name("Heading1".into()));
                     ui.label("Private Blog");
-                    
+
                     ui.add_space(40.0);
-                    
+
                     ui.style_mut().override_text_style = Some(egui::TextStyle::Body);
                     ui.label("This section is password protected.");
-                    
+
                     ui.add_space(20.0);
-                    
+
                     ui.horizontal(|ui| {
                         ui.label("Password:");
                         let response = ui.add(
                             egui::TextEdit::singleline(&mut self.password_input)
                                 .password(true)
-                                .desired_width(200.0)
+                                .desired_width(200.0),
                         );
-                        
+
                         if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                             if self.password_input == PRIVATE_BLOG_PASSWORD {
                                 self.is_private_authenticated = true;
@@ -963,7 +964,7 @@ impl MyApp {
                                 self.password_input.clear();
                             }
                         }
-                        
+
                         if ui.button("Submit").clicked() {
                             if self.password_input == PRIVATE_BLOG_PASSWORD {
                                 self.is_private_authenticated = true;
@@ -973,14 +974,14 @@ impl MyApp {
                             }
                         }
                     });
-                    
+
                     ui.add_space(40.0);
                 });
             });
-            
+
             return;
         }
-        
+
         // Authenticated - show private blog content
         if let Some(blog_index) = self.selected_private_blog {
             if let Some(blog_post) = self.private_blog_posts.get(blog_index) {
@@ -1259,7 +1260,11 @@ impl MyApp {
                 self.selected_blog = None;
             }
             Page::PrivateBlogPost(slug) => {
-                if let Some(index) = self.private_blog_posts.iter().position(|post| post.slug == slug) {
+                if let Some(index) = self
+                    .private_blog_posts
+                    .iter()
+                    .position(|post| post.slug == slug)
+                {
                     self.selected_private_blog = Some(index);
                 } else {
                     self.selected_private_blog = None;
