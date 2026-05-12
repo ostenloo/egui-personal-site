@@ -12,7 +12,7 @@ pub struct ContentSegment {
 }
 
 pub fn parse_content_segments(content: &str) -> Vec<ContentSegment> {
-    let details_re = Regex::new(r"<details>\s*\n\s*<summary><strong>([^)]+)</strong></summary>\s*\n\s*```([^`]+)```\s*\n\s*</details>").unwrap();
+    let details_re = Regex::new(r"<details>\s*\n\s*<summary><strong>([^<]+)</strong></summary>(\s*\n)+```(.*?)```(\s*\n)+</details>").unwrap();
     
     let mut segments = Vec::new();
     let mut remaining = content.to_string();
@@ -77,12 +77,7 @@ pub fn render_segments(ui: &mut egui::Ui, cache: &mut CommonMarkCache, segments:
                 egui::Frame::group(ui.style())
                     .fill(ui.style().visuals.code_bg_color)
                     .show(ui, |ui| {
-                        egui::ScrollArea::vertical()
-                            .auto_shrink([true; 2])
-                            .max_height(400.0)
-                            .show(ui, |ui| {
-                                ui.monospace(code);
-                            });
+                        ui.monospace(code);
                     });
             });
             ui.add_space(8.0);
