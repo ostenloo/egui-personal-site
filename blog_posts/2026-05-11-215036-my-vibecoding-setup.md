@@ -1,29 +1,29 @@
 ---
 title: "My Vibecoding Setup"
-date: "2026-05-11T21:50:36:z"
+date: "2026-05-11T21:50:36"
 ---
 
 I've recently upgraded my utilization of AI from just the ChatGPT and Claude apps to a full on vibecoding setup. Here's what I did: 
 
 ### Hardware 
 
-RTX 5090
-RYZEN 9 7900X
-4TB Samsung NVMe
-M1 MBP 16 inch
-iPhone 16 pro max (lol)
+- RTX 5090
+- RYZEN 9 7900X
+- 4TB Samsung NVMe
+- M1 MBP 16 inch
+- iPhone 16 pro max (lol)
 
 ### Operating Systems  
 
-Fedora
-MacOS
-iOS 
+- Fedora
+- MacOS
+- iOS 
 
 ### Coding & Networking Setup
 
 **Tailscale.** Tailscale is a VPN that connects devices onto a private network (tailnet), allowing fast and secure access across devices. Each device gets a private IP address that can be used for device to device connection. 
 
-Tailscale Serve is a reverse proxy within the tailnet that allows devices to expose specific ports. So I can actually access localhost from my phone, its not a meme! 
+Tailscale Serve is a reverse proxy within the tailnet that allows devices to expose specific ports. So I can actually access localhost from my phone, its not a 1meme! 
 
 **Termius.** Termius allows you to connect to and control terminals via SSH from my iPhone. With my devices on the tailnet, its faster and more secure than SSH over the public internet. 
 
@@ -829,6 +829,6 @@ AI applied to the field of Software Engineering has two functionalities. One is 
 
 I've found that human understanding tends to lag behind the coding output, so I pace myself. I don't try to output as much code as possible, I try to output what I can understand and iterate upon. Vibe Coding has abstracted away coding itself from the developer in varying degrees, and the abstractions may become more and more encompassing in scope over time. But I believe fundamentally, what is most important is the alignment between humans and AI. 
 
-If AI produces so much code but the human cannot understand it, it's possible that it might break. Or it could be working perfectly fine. But the issue is, if the developer doesn't understand the code, then they can no longer meaningfully contribute to the software. So you now just have autonomous agents handling code repositories that nobody is using. The bottleneck stops being code quality -- it becomes human relevancy. 
+If AI produces a large amount of highly complex code but the human cannot understand it, it's possible that it might break. Or it could be working perfectly fine. But the issue is, if the developer doesn't understand the code, then they can no longer meaningfully contribute to the software. So you now just have autonomous agents handling code repositories that nobody is using. The bottleneck stops being code quality -- it becomes human relevancy. 
 
 This is how I see the problem of AI Alignment. It is already relevant -- and it's not just the doomsday scenarios of AI Apocalypses or Skynet or Ultron or Roko's Basilisk. Alignment was always going to be more nuanced than that. 
