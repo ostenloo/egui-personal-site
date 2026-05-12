@@ -37,16 +37,18 @@
         }
 
         body {
-            /* Light mode background color for what is not covered by the egui canvas,
-            or where the egui canvas is translucent. */
-            background: #909090;
+            /* Default background - will be overridden by script if theme is saved */
+            background: #252525;
         }
 
-        @media (prefers-color-scheme: dark) {
+        /* Hide body until theme is applied */
+        body.loading {
+            visibility: hidden;
+        }
+
+        @media (prefers-color-scheme: light) and (data-theme="auto") {
             body {
-                /* Dark mode background color for what is not covered by the egui canvas,
-                or where the egui canvas is translucent. */
-                background: #404040;
+                background: #fafafa;
             }
         }
 
@@ -64,7 +66,7 @@
         canvas {
             margin-right: auto;
             margin-left: auto;
-            display: none;
+            display: block;
             position: absolute;
             top: 0%;
             left: 50%;
@@ -72,10 +74,6 @@
             /* Explicit sizing for development - helps with debugging */
             width: 100vw;
             height: 100vh;
-        }
-
-        canvas.ready {
-            display: block;
         }
 
         .centered {
@@ -142,15 +140,21 @@
         }
     </script>
 
-    <!-- Hide canvas until egui is ready to prevent FOUC -->
+    <!-- Apply saved theme before first paint to prevent FOUC -->
     <script>
-        // Wait for egui to finish rendering the first frame before showing the canvas
         (function() {
-            var canvas = document.getElementById('the_canvas_id');
-            // Wait 200ms for egui to initialize and apply saved theme
-            setTimeout(function() {
-                canvas.classList.add('ready');
-            }, 200);
+            var stored = localStorage.getItem('egui_app_state');
+            var isDark = true; // default
+            if (stored) {
+                try {
+                    var state = JSON.parse(stored);
+                    if (state.hasOwnProperty('prefer_dark')) {
+                        isDark = state.prefer_dark;
+                    }
+                } catch(e) {}
+            }
+            document.body.style.background = isDark ? '#252525' : '#fafafa';
+            document.body.classList.remove('loading');
         })();
     </script>
 </body>
