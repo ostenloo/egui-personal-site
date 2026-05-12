@@ -21,31 +21,31 @@ I've recently upgraded my utilization of AI from just the ChatGPT and Claude app
 
 ### Coding & Networking Setup
 
-**Tailscale.** Tailscale is a VPN that connects devices onto a private network (tailnet), allowing fast and secure access across devices. Each device gets a private IP address that can be used for device to device connection. 
+**[Tailscale](https://tailscale.com/).** Tailscale is a VPN that connects devices onto a private network (tailnet), allowing fast and secure access across devices. Each device gets a private IP address that can be used for device to device connection. 
 
 Tailscale Serve is a reverse proxy within the tailnet that allows devices to expose specific ports. So I can actually access localhost from my phone, its not a meme! 
 
-**Termius.** Termius allows you to connect to and control terminals via SSH from my iPhone. With my devices on the tailnet, its faster and more secure than SSH over the public internet. 
+**[Termius](https://termius.com/).** Termius allows you to connect to and control terminals via SSH from my iPhone. With my devices on the tailnet, its faster and more secure than SSH over the public internet. 
 
-**Docker.** Even without my specific use cases, Docker is just nice to have. I have an ever growing list of use cases for Docker, but first and foremost, I use it to run vLLM. vLLM is an inference engine for running my local LLM. I can expand on other use cases of Docker as it pertains to my Software projects. 
+**[Docker](https://www.docker.com/).** Even without my specific use cases, Docker is just nice to have. I have an ever growing list of use cases for Docker, but first and foremost, I use it to run vLLM. vLLM is an inference engine for running my local LLM. I can expand on other use cases of Docker as it pertains to my Software projects. 
 
-**vLLM.** vLLM is an inference engine for running local models. It serves an API compatible with OpenAI API Spec so it can be used to configure local LLM setups. 
+**[vLLM](https://vllm.ai/).** vLLM is an inference engine for running local models. It serves an API compatible with OpenAI API Spec so it can be used to configure local LLM setups. 
 
-**Pi.dev** This is a minimalistic agent harness. It works in your terminal similar to Claude Code and I enjoy using it. 
+**[Pi.dev](https://pi.dev).** This is a minimalistic agent harness. It works in your terminal similar to Claude Code and I enjoy using it. 
 
-**Tmux.** Tmux is awesome! It allows you to detach the Terminal sessions that you're running so they can persist in the background. Plus you can control them from any new Terminal. Tmux allows Pi to control terminals.
+**[Tmux](https://github.com/tmux/tmux).** Tmux is awesome! It allows you to detach the Terminal sessions that you're running so they can persist in the background. Plus you can control them from any new Terminal. Tmux allows Pi to control terminals.
 
 **[Qwen3.6-27b-AWQ-INT4](https://huggingface.co/cyankiwi/Qwen3.6-27B-AWQ-INT4)** This is the local model I run via vLLM. People on the LocalLLama subreddit said its good, so I trusted them. From my experience it is good also. I get around 114 tok/s. 
 
-**Claude Code.** I utilize Claude Code via my Pro subscription (~$200 + tax per year) because it can be used when I need to free up VRAM so I shut down my local LLM or when I have a more difficult task that my local LLM is struggling with. 
+**[Claude Code](https://claude.ai/).** I utilize Claude Code via my Pro subscription (~$200 + tax per year) because it can be used when I need to free up VRAM so I shut down my local LLM or when I have a more difficult task that my local LLM is struggling with. 
 
-**Claude.** I use Opus to talk about design decisions for my projects, and I have it generate detailed instructions for a coding agent to implement. I also like the iOS app's conversation feature sometimes.
+**[Claude](https://claude.ai/).** I use Opus to talk about design decisions for my projects, and I have it generate detailed instructions for a coding agent to implement. I also like the iOS app's conversation feature sometimes.
 
-**Claude Design.** It looks good ngl. Yeah people complain about all vibe coded websites looking the same, but tbh this was the YCombinator look even before LLMs were capable of generating stuff like this (from around 2021-2024). Basically it was NextJS + Tailwind CSS. 
+**[Claude Design](https://claude.ai/).** It looks good ngl. Yeah people complain about all vibe coded websites looking the same, but tbh this was the YCombinator look even before LLMs were capable of generating stuff like this (from around 2021-2024). Basically it was NextJS + Tailwind CSS. 
 
-**VSCode.** Yeah I still use VSCode. 
+**[VSCode](https://code.visualstudio.com/).** Yeah I still use VSCode. 
 
-**Github.** Git is still useful. 
+**[Github](https://github.com/).** Git is still useful. 
 
 ### Guardrails Extension
 
