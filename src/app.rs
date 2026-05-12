@@ -869,7 +869,7 @@ impl MyApp {
                         let date_display = blog_post.date_display.clone();
                         let mut open_post = false;
 
-                        egui::Frame::group(&ui.style())
+                        egui::Frame::group(ui.style())
                             .stroke(egui::Stroke::NONE)
                             .rounding(egui::Rounding::ZERO)
                             .show(ui, |ui| {
@@ -1075,7 +1075,7 @@ impl MyApp {
                         let date_display = blog_post.date_display.clone();
                         let mut open_post = false;
 
-                        egui::Frame::group(&ui.style())
+                        egui::Frame::group(ui.style())
                             .stroke(egui::Stroke::NONE)
                             .rounding(egui::Rounding::ZERO)
                             .show(ui, |ui| {
