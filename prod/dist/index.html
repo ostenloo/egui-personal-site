@@ -154,6 +154,12 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
     <!-- Apply saved theme before first paint to prevent FOUC -->
     <script>
         (function() {
+            // Pre-size canvas to prevent layout shift
+            var canvas = document.getElementById('the_canvas_id');
+            canvas.setAttribute('width', window.innerWidth);
+            canvas.setAttribute('height', window.innerHeight);
+            
+            // Apply saved theme
             var stored = localStorage.getItem('egui_app_state');
             var isDark = true; // default
             if (stored) {
