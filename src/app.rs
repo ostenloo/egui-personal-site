@@ -13,12 +13,12 @@ pub struct ContentSegment {
 pub fn parse_content_segments(content: &str) -> Vec<ContentSegment> {
     let mut segments = Vec::new();
     let mut remaining = content.to_string();
-    
+
     loop {
         if let Some(start) = remaining.find("<details>") {
             if let Some(end) = remaining[start..].find("</details>") {
                 let block = &remaining[start..start + end + 11];
-                
+
                 // Extract filename from <summary><strong>...</strong></summary>
                 let filename = if let Some(sum_start) = block.find("<summary><strong>") {
                     let sum_rest = &block[sum_start + 17..];
@@ -30,7 +30,7 @@ pub fn parse_content_segments(content: &str) -> Vec<ContentSegment> {
                 } else {
                     continue;
                 };
-                
+
                 // Extract code from ```...```
                 let code = if let Some(code_start) = block.find("```") {
                     let code_rest = &block[code_start + 3..];
@@ -42,19 +42,22 @@ pub fn parse_content_segments(content: &str) -> Vec<ContentSegment> {
                 } else {
                     continue;
                 };
-                
+
                 // Add text before the match
                 let before = remaining[..start].to_string();
                 if !before.trim().is_empty() {
-                    segments.push(ContentSegment { text: before, code_blocks: Vec::new() });
+                    segments.push(ContentSegment {
+                        text: before,
+                        code_blocks: Vec::new(),
+                    });
                 }
-                
+
                 // Add the code block
                 segments.push(ContentSegment {
                     text: String::new(),
                     code_blocks: vec![(filename, code)],
                 });
-                
+
                 // Continue after the match
                 remaining = remaining[start + end + 11..].to_string();
             } else {
@@ -63,12 +66,15 @@ pub fn parse_content_segments(content: &str) -> Vec<ContentSegment> {
         } else {
             // No more matches, add remaining text
             if !remaining.trim().is_empty() {
-                segments.push(ContentSegment { text: remaining, code_blocks: Vec::new() });
+                segments.push(ContentSegment {
+                    text: remaining,
+                    code_blocks: Vec::new(),
+                });
             }
             break;
         }
     }
-    
+
     segments
 }
 
@@ -151,11 +157,12 @@ pub fn render_code_block(ui: &mut egui::Ui, lang: &str, code: &str) {
 
     if !is_collapsed {
         // Show language as header, collapsible
-        egui::CollapsingHeader::new(
-            egui::RichText::new(lang).monospace().strong()
-        ).show(ui, |ui| {
-            render_code_block_content(ui, lang, code, &mut copied);
-        });
+        egui::CollapsingHeader::new(egui::RichText::new(lang).monospace().strong()).show(
+            ui,
+            |ui| {
+                render_code_block_content(ui, lang, code, &mut copied);
+            },
+        );
     } else {
         // No language — render directly
         render_code_block_content(ui, "", code, &mut copied);
@@ -202,13 +209,13 @@ fn lang_from_filename(filename: &str) -> &str {
     let ext = filename.split('.').next_back().unwrap_or("");
     match ext {
         // These extensions are recognized by syntect's default SyntaxSet
-        "rs" | "py" | "js" | "css" | "html" | "json" | "yaml" | "yml" | "sh" | "go" | "c" | "cpp"
-        | "cc" | "h" | "hpp" | "java" | "rb" | "php" | "sql" | "xml" | "md" => ext,
+        "rs" | "py" | "js" | "css" | "html" | "json" | "yaml" | "yml" | "sh" | "go" | "c"
+        | "cpp" | "cc" | "h" | "hpp" | "java" | "rb" | "php" | "sql" | "xml" | "md" => ext,
         // Fallbacks for unsupported languages
         "ts" | "tsx" => "js", // TypeScript → JavaScript
-        "kt" => "",            // Kotlin → plain text
-        "swift" => "",         // Swift → plain text
-        "toml" => "",          // TOML → plain text
+        "kt" => "",           // Kotlin → plain text
+        "swift" => "",        // Swift → plain text
+        "toml" => "",         // TOML → plain text
         "txt" | "log" | "conf" | "cfg" | "ini" | "env" => "",
         _ => "",
     }
@@ -235,7 +242,9 @@ fn render_code_block_content(ui: &mut egui::Ui, lang: &str, code: &str, _copied:
                     };
                     if btn.clicked() {
                         ui.ctx().copy_text(code.to_string());
-                        ui.memory_mut(|m| *m.data.get_temp_mut_or(block_id, f64::NEG_INFINITY) = now);
+                        ui.memory_mut(|m| {
+                            *m.data.get_temp_mut_or(block_id, f64::NEG_INFINITY) = now
+                        });
                     }
                 });
             });
@@ -256,7 +265,11 @@ fn render_code_block_content(ui: &mut egui::Ui, lang: &str, code: &str, _copied:
 }
 
 /// Render content segments with collapsible code blocks
-pub fn render_segments(ui: &mut egui::Ui, cache: &mut CommonMarkCache, segments: &[ContentSegment]) {
+pub fn render_segments(
+    ui: &mut egui::Ui,
+    cache: &mut CommonMarkCache,
+    segments: &[ContentSegment],
+) {
     for (idx, segment) in segments.iter().enumerate() {
         // Render markdown text (which may contain standard fenced code blocks)
         if !segment.text.trim().is_empty() {
@@ -267,11 +280,7 @@ pub fn render_segments(ui: &mut egui::Ui, cache: &mut CommonMarkCache, segments:
                     ParsedSegment::Text(text) => {
                         if !text.trim().is_empty() {
                             let viewer_id = ui.id().with((idx, sub_idx));
-                            CommonMarkViewer::new(viewer_id).show(
-                                ui,
-                                cache,
-                                &text,
-                            );
+                            CommonMarkViewer::new(viewer_id).show(ui, cache, &text);
                         } else if !text.is_empty() {
                             // Preserve whitespace/newlines
                             ui.add(egui::Label::new(egui::RichText::new("\n")).wrap(false));
@@ -287,13 +296,12 @@ pub fn render_segments(ui: &mut egui::Ui, cache: &mut CommonMarkCache, segments:
         // Render collapsible code blocks (from <details> tags)
         for (filename, code) in &segment.code_blocks {
             ui.add_space(8.0);
-            egui::CollapsingHeader::new(
-                egui::RichText::new(filename)
-                    .monospace()
-                    .strong()
-            ).show(ui, |ui| {
-                render_code_block_content(ui, lang_from_filename(filename), code, &mut false);
-            });
+            egui::CollapsingHeader::new(egui::RichText::new(filename).monospace().strong()).show(
+                ui,
+                |ui| {
+                    render_code_block_content(ui, lang_from_filename(filename), code, &mut false);
+                },
+            );
             ui.add_space(8.0);
         }
     }
@@ -598,7 +606,7 @@ pub struct MyApp {
     markdown_cache: CommonMarkCache,
     #[serde(skip)] // UI-only overlay state
     show_mobile_menu: bool,
-    
+
     #[serde(skip)] // Flag to save theme immediately
     theme_changed: bool,
 }
@@ -849,7 +857,7 @@ impl eframe::App for MyApp {
         if is_compact && self.show_mobile_menu {
             self.show_mobile_menu_overlay(ctx);
         }
-        
+
         // Save theme immediately if it changed
         if self.theme_changed {
             self.theme_changed = false;
