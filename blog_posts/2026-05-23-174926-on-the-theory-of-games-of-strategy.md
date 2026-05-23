@@ -1,6 +1,6 @@
 ---
 title: "On the Theory of Games of Strategy"
-date: "2026-05-23T17:49:26:z"
+date: "2026-05-23T17:49:26"
 ---
 
 [Source Text](https://cs.uwaterloo.ca/~y328yu/classics/vonNeumann.pdf)
