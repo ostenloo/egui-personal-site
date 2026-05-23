@@ -1,1 +1,2 @@
 [build]
+watch = ["src", "blog_posts", "private_blog_posts"]
