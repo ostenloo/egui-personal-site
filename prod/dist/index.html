@@ -12,8 +12,8 @@
     <!-- config for our rust wasm binary. go to https://trunkrs.dev/assets/#rust for more customization -->
     
 <script type="module">
-import init, * as bindings from '/ps-ceec87451f9a7722.js';
-const wasm = await init('/ps-ceec87451f9a7722_bg.wasm');
+import init, * as bindings from './ps-d632f7186f7beea.js';
+const wasm = await init('./ps-d632f7186f7beea_bg.wasm');
 
 
 window.wasmBindings = bindings;
@@ -23,9 +23,9 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
 
 </script>
     <!-- this is the base url relative to which other urls will be constructed. trunk will insert this from the public-url option -->
-    <base href="/" />
+    <base href="./" />
 
-    <link rel="icon" href="/favicon-f402c8741ce815ec.ico" integrity="sha384-jNOAE6jgE03LznIulCTVP6BH4NrTuROFjP9wj8bV1UUMJKtZAvstFpIAP3PDcFpx"/>
+    <link rel="icon" href="./favicon-f402c8741ce815ec.ico" integrity="sha384-jNOAE6jgE03LznIulCTVP6BH4NrTuROFjP9wj8bV1UUMJKtZAvstFpIAP3PDcFpx"/>
 
 
     
@@ -132,7 +132,7 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
         }
 
     </style>
-<link rel="modulepreload" href="/ps-ceec87451f9a7722.js" crossorigin="anonymous" integrity="sha384-bq7fzPdwmA2dgn6rnJ2RbP2wdoXZBRX+blmCahifkjnYO7A/hl7bQoawze1M4Z/z"><link rel="preload" href="/ps-ceec87451f9a7722_bg.wasm" crossorigin="anonymous" integrity="sha384-d6EoZs/hsOjsRixVUJLOpZqW1UmPHmBcGEpIempyCUeJ3rHQp11RnKgFrlP16qGc" as="fetch" type="application/wasm"></head>
+<link rel="modulepreload" href="./ps-d632f7186f7beea.js" crossorigin="anonymous" integrity="sha384-E3H6ZZUD7V0/MlDQoOA0MZZQstdHou1cE1FY+8s4cpJG/FZYu8KcSkK2uF00yIqh"><link rel="preload" href="./ps-d632f7186f7beea_bg.wasm" crossorigin="anonymous" integrity="sha384-2OR+9IhUCUI7BnsJDkMlbnBabGwhmIO2i2C/EdKOPTwRLX34jttlJfzlBsOl8q6r" as="fetch" type="application/wasm"></head>
 
 <body>
     <canvas id="the_canvas_id"></canvas>
