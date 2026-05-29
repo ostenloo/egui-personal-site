@@ -12,8 +12,8 @@
     <!-- config for our rust wasm binary. go to https://trunkrs.dev/assets/#rust for more customization -->
     
 <script type="module">
-import init, * as bindings from './ps-b3ee15d47f258f5d.js';
-const wasm = await init('./ps-b3ee15d47f258f5d_bg.wasm');
+import init, * as bindings from './ps-d2e88c610ec0f225.js';
+const wasm = await init('./ps-d2e88c610ec0f225_bg.wasm');
 
 
 window.wasmBindings = bindings;
@@ -132,7 +132,7 @@ dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
         }
 
     </style>
-<link rel="modulepreload" href="./ps-b3ee15d47f258f5d.js" crossorigin="anonymous" integrity="sha384-E3H6ZZUD7V0/MlDQoOA0MZZQstdHou1cE1FY+8s4cpJG/FZYu8KcSkK2uF00yIqh"><link rel="preload" href="./ps-b3ee15d47f258f5d_bg.wasm" crossorigin="anonymous" integrity="sha384-jDGWv1sR+lR0qYrnURt0qe4BctubJmD4OLetTfoChwoAlB8TolPuBu26S6LhFDdE" as="fetch" type="application/wasm"></head>
+<link rel="modulepreload" href="./ps-d2e88c610ec0f225.js" crossorigin="anonymous" integrity="sha384-lZWnh8q6Jwe/M8gk/rpC5RcnusXcXA0T75EKz3XYfQxL8BPpDhKsdxazkjCzV5fX"><link rel="preload" href="./ps-d2e88c610ec0f225_bg.wasm" crossorigin="anonymous" integrity="sha384-cmppJME5V67oHdXvVoCnqWyqWo6j8kU56zJehyiWuxw8ZEVUxVVf62zv6I9vbqnR" as="fetch" type="application/wasm"></head>
 
 <body>
     <canvas id="the_canvas_id"></canvas>
