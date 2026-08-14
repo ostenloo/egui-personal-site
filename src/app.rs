@@ -715,6 +715,9 @@ impl MyApp {
 
         cc.egui_ctx.set_style(style);
 
+        // Install image loaders (egui_extras) so markdown images render
+        egui_extras::install_image_loaders(&cc.egui_ctx);
+
         let mut restored_from_storage = false;
         let mut app: Self = if let Some(storage) = cc.storage {
             restored_from_storage = true;

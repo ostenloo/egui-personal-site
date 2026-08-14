@@ -8,15 +8,12 @@ mkdir -p "$DIR"
 read -rp "Post title: " TITLE
 
 # 2) Generate ISO-8601 timestamp with colon in timezone offset
-#    GNU date supports %:z, BSD does not.
-if TS=$(date +"%Y-%m-%dT%H:%M:%S%:z" 2>/dev/null); then
-  : # Successful GNU format
-else
-  BASE=$(date +"%Y-%m-%dT%H:%M:%S")
-  OFF=$(date +%z)             # e.g. "-0600"
-  OFF="${OFF:0:3}:${OFF:3:2}" # '-06:00'
-  TS="$BASE$OFF"
-fi
+#    GNU date supports %:z, but BSD date exits 0 and outputs ":z" literally.
+#    Always use the manual approach to be safe across platforms.
+BASE=$(date +"%Y-%m-%dT%H:%M:%S")
+OFF=$(date +%z)             # e.g. "-0600"
+OFF="${OFF:0:3}:${OFF:3:2}" # '-06:00'
+TS="$BASE$OFF"
 
 # 3) Create slug
 SLUG=$(printf '%s' "$TITLE" \
